@@ -1,0 +1,33 @@
+provider: TODO
+name: Candidate Python SaaS Twin
+base_url: http://localhost:8080
+
+run:
+  build: docker build -t candidate-twin .
+  start: docker run --rm -p 8080:8080 candidate-twin
+
+auth:
+  valid:
+    header: Authorization
+    value: Bearer sk_test_twin_123
+  invalid:
+    header: Authorization
+    value: Bearer invalid
+
+control:
+  health: GET /_arga/healthz
+  state: GET /_arga/admin/state
+  reset: POST /_arga/admin/reset
+  openapi: GET /openapi.json
+
+examples:
+  - name: List example resources
+    method: GET
+    path: /v1/example-resources
+  - name: Create example resource
+    method: POST
+    path: /v1/example-resources
+    body:
+      name: Example resource
+
+# TODO: update provider, examples, credentials, and route inventory for your SaaS.
