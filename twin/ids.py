@@ -16,6 +16,7 @@ from twin.config import (
     PREFIX_COMMENT,
     PREFIX_FIELD,
     PREFIX_RECORD,
+    PREFIX_SELECT,
     PREFIX_TABLE,
     PREFIX_USER,
     PREFIX_VIEW,
@@ -86,3 +87,7 @@ def comment_id() -> str:
 
 def webhook_id() -> str:
     return next_id(PREFIX_WEBHOOK)
+
+
+def select_id() -> str:
+    return next_id(PREFIX_SELECT)

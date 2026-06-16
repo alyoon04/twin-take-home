@@ -1,12 +1,12 @@
 # Progress Log
 
-> **Resume here:** S7 (real PAT auth) complete — `auth.get_token` + `require_scope`, tokens seeded
-> (full-scope `VALID_PAT` + `READONLY_PAT`), the 401/403 boundary per spec; 32 tests passing. **Next → S8:
-> expand `seed.py`** into the full graph — add a second base (Project Tracker), more field types
-> (singleSelect/number/date/multipleRecordLinks), more records + relationships. Last step of Phase 1.
+> **Resume here:** S8 (full seed graph) complete — 2 bases / 3 tables / 13 records, bidirectional
+> Projects↔Tasks links, singleSelect/number/date/checkbox fields, empty cells omitted; 35 tests passing.
+> **Phase 1 (Foundation) DONE.** **Next → S9 (Phase 2): real Records API** — `twin/routers/records.py`
+> with GET list (basic) + GET one + 404; delete the temporary example router and replace its starter tests.
 
-**Last updated:** 2026-06-16 — S7
-**Current phase:** Phase 1 — Foundation (S8 next)
+**Last updated:** 2026-06-16 — S8
+**Current phase:** Phase 2 — Records API (S9 next)
 
 ## Checklist
 ### Phase 0 — Setup & Research
@@ -19,7 +19,7 @@
 - [x] S5 Store + reset + richer /state
 - [x] S6 Error model + handlers
 - [x] S7 Auth (missing/invalid/scope)
-- [ ] S8 Seed graph
+- [x] S8 Seed graph
 ### Phase 2 — Records API
 - [ ] S9 Records read (list + get + 404)
 - [ ] S10 List query (pagination, fields[], sort[])
@@ -99,4 +99,5 @@ S2 resolved the big ones (see outcome above). Remaining unconfirmed items live i
 - `errors.py` is real (catalog + handlers: AirtableError, 422 override, unmatched-route NOT_FOUND). `provider_error` lingers only for the example router.
 - `auth.py` is real: `get_token` + `require_scope(scope)` for S9+ routes. Legacy `require_auth` stays for the example router only (removed S9).
 - Fake creds: valid `config.VALID_PAT` (full scope), `config.READONLY_PAT` (read-only), invalid example `config.INVALID_PAT_EXAMPLE`.
-- `seed.py` is minimal (1 base) — S8 expands it to the full graph (2 bases, all field types, links, comments, a webhook).
+- `seed.py` is the full graph: CRM/Contacts (5) + Project Tracker/Projects (3) + Tasks (5), bidirectional Projects↔Tasks links, singleSelect/number/date/checkbox. (Comments + a webhook arrive with their endpoints in S17/S18.)
+- Records store only non-empty cells (`seed._clean`) — the records create/update steps (S12/S13) must apply the same rule on writes.
