@@ -121,6 +121,13 @@ def list_records_iterator_not_available() -> AirtableError:
     )
 
 
+def invalid_filter_by_formula(
+    message: str = "The formula for filtering records is invalid. Please check your formula text.",
+) -> AirtableError:
+    """422 — malformed filterByFormula (or an unknown field referenced in it)."""
+    return error_object(status.HTTP_422_UNPROCESSABLE_ENTITY, "INVALID_FILTER_BY_FORMULA", message)
+
+
 def rate_limit_reached() -> AirtableError:
     """429 — singular envelope (NOT a plural array); message has no trailing period."""
     return error_object(

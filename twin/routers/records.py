@@ -12,7 +12,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, Request
 
-from twin import auth, config, errors, store
+from twin import auth, config, errors, formula, store
 
 router = APIRouter(tags=["records"])
 
@@ -73,7 +73,7 @@ def _decode_offset(offset, total: int) -> int:
     return index
 
 
-def _query_records(table, *, fields, page_size, max_records, offset, sorts, by_id) -> dict:
+def _query_records(table, *, fields, page_size, max_records, offset, sorts, by_id, formula_text=None) -> dict:
     if not isinstance(page_size, int) or page_size < 1 or page_size > 100:
         raise errors.invalid_request()
     if max_records is not None and (not isinstance(max_records, int) or max_records < 1):
@@ -82,7 +82,15 @@ def _query_records(table, *, fields, page_size, max_records, offset, sorts, by_i
     id_to_name = {f["id"]: f["name"] for f in table["fields"]}
     name_to_id = {f["name"]: f["id"] for f in table["fields"]}
 
-    ordered = _apply_sort(list(table["records"].values()), sorts, id_to_name)
+    records = list(table["records"].values())
+    if formula_text:
+        try:
+            node = formula.compile_formula(formula_text, set(name_to_id), id_to_name)
+        except formula.FormulaError:
+            raise errors.invalid_filter_by_formula()
+        records = [r for r in records if formula.matches(node, r["fields"])]
+
+    ordered = _apply_sort(records, sorts, id_to_name)
     total = len(ordered) if max_records is None else min(len(ordered), max_records)
     start = _decode_offset(offset, total)
     page = ordered[start:min(start + page_size, total)]
@@ -152,6 +160,7 @@ def list_records(base_id: str, table_id_or_name: str, request: Request, _: ReadT
         offset=qp.get("offset"),
         sorts=_sorts_from_query(qp),
         by_id=qp.get("returnFieldsByFieldId") == "true",
+        formula_text=qp.get("filterByFormula"),
     )
 
 
@@ -172,6 +181,7 @@ def list_records_post(
         offset=body.get("offset"),
         sorts=_sorts_from_body(body.get("sort")),
         by_id=bool(body.get("returnFieldsByFieldId", False)),
+        formula_text=body.get("filterByFormula"),
     )
 
 

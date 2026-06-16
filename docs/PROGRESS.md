@@ -1,12 +1,12 @@
 # Progress Log
 
-> **Resume here:** S10 (list query) complete — pagination (`pageSize`/`maxRecords`/opaque `offset`),
-> `fields[]` projection, multi-key `sort[]`, `returnFieldsByFieldId`, POST `/listRecords`; stale/garbage
-> offset → `422 LIST_RECORDS_ITERATOR_NOT_AVAILABLE`; 52 tests passing. **Next → S11: filterByFormula subset**
-> (`twin/formula.py`) per SPEC §7 — literals, `{Field}` refs, comparisons, `AND/OR/NOT`, a few functions.
+> **Resume here:** S11 (filterByFormula subset) complete — `twin/formula.py` recursive-descent evaluator
+> (literals, `{Field}`/bare refs, `= != < > <= >=`, `+ - * / &`, AND/OR/NOT/XOR/IF/SWITCH + ~20 text/number
+> fns), wired into list; unknown field / malformed → `422 INVALID_FILTER_BY_FORMULA`; 63 tests passing.
+> **Next → S12: records create** — POST single + batch (≤10) + `typecast`, with field validation.
 
-**Last updated:** 2026-06-16 — S10
-**Current phase:** Phase 2 — Records API (S11 next)
+**Last updated:** 2026-06-16 — S11
+**Current phase:** Phase 2 — Records API (S12 next)
 
 ## Checklist
 ### Phase 0 — Setup & Research
@@ -23,7 +23,7 @@
 ### Phase 2 — Records API
 - [x] S9 Records read (list + get + 404)
 - [x] S10 List query (pagination, fields[], sort[])
-- [ ] S11 filterByFormula subset
+- [x] S11 filterByFormula subset
 - [ ] S12 Records create (single/batch/typecast/validation)
 - [ ] S13 Records update (patch/put/upsert)
 - [ ] S14 Records delete (single/batch)
@@ -98,5 +98,6 @@ S2 resolved the big ones (see outcome above). Remaining unconfirmed items live i
 - `errors.py` real (AirtableError catalog + handlers: 422 override, unmatched-route NOT_FOUND). **Data-API not-found uses `not_found(bare=True)` → `{"error":"NOT_FOUND"}`.**
 - `auth.py` real: `get_token` + `require_scope(scope)`. Fake creds: `config.VALID_PAT` (full), `config.READONLY_PAT` (read-only), `config.INVALID_PAT_EXAMPLE` (invalid).
 - `seed.py` full graph: CRM/Contacts (5) + Project Tracker/Projects (3) + Tasks (5), Projects↔Tasks links. Records hold only non-empty cells (`seed._clean`) — **S12/S13 writes must apply the same rule.** Comments + webhook arrive in S17/S18.
-- `records.py`: read + query — list (pagination/projection/sort/`returnFieldsByFieldId`), POST `/listRecords`, get. Deferred gaps: `filterByFormula` (S11), `view`, `cellFormat=string`/`timeZone`/`userLocale`. S12–S14 add create/update/delete (write scope).
+- `records.py`: read + query — list (pagination/projection/sort/`returnFieldsByFieldId`/`filterByFormula`), POST `/listRecords`, get. Deferred gaps: `view`, `cellFormat=string`/`timeZone`/`userLocale`. S12–S14 add create/update/delete (write scope).
+- `formula.py`: filterByFormula subset (recursive-descent). Out of scope (documented): date/time, regex, array/rollup, record-meta functions.
 - Pagination `offset` = `itr<index>/<recordId>` (opaque, deterministic); `_decode_offset` raises iterator-422 on bad/stale values.
