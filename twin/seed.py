@@ -12,6 +12,7 @@ which omits empty/false cells from records.
 """
 
 from twin import clock, config, ids
+from twin.recordutil import clean_fields as _clean
 
 _ISO_DATE = {"dateFormat": {"name": "iso", "format": "YYYY-MM-DD"}}
 _CHECKBOX = {"icon": "check", "color": "greenBright"}
@@ -49,15 +50,6 @@ def build() -> dict:
 
 
 # --- helpers --------------------------------------------------------------
-
-def _clean(fields: dict) -> dict:
-    """Drop empty cells (None / "" / False / []) the way Airtable does on read."""
-    return {
-        k: v
-        for k, v in fields.items()
-        if v is not None and v is not False and v != "" and v != []
-    }
-
 
 def _record(fields: dict) -> tuple[str, dict]:
     rid = ids.record_id()

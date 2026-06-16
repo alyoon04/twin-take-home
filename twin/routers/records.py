@@ -12,11 +12,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, Request
 
-from twin import auth, config, errors, formula, store
+from twin import auth, clock, config, errors, formula, ids, recordutil, store
 
 router = APIRouter(tags=["records"])
 
 ReadToken = Annotated[dict, Depends(auth.require_scope(config.SCOPE_RECORDS_READ))]
+WriteToken = Annotated[dict, Depends(auth.require_scope(config.SCOPE_RECORDS_WRITE))]
 
 
 # --- resolution -----------------------------------------------------------
@@ -192,3 +193,70 @@ def get_record(base_id: str, table_id_or_name: str, record_id: str, _: ReadToken
     if record is None:
         raise errors.not_found(bare=True)
     return {"id": record["id"], "createdTime": record["createdTime"], "fields": dict(record["fields"])}
+
+
+# --- create (S12) ---------------------------------------------------------
+
+def _present(record: dict, by_id: bool, name_to_id: dict) -> dict:
+    return {
+        "id": record["id"],
+        "createdTime": record["createdTime"],
+        "fields": _format_fields(record["fields"], None, by_id, name_to_id),
+    }
+
+
+def _coerce_value(field: dict, value, typecast: bool):
+    # Strict for singleSelect (the documented typecast case); lenient for other
+    # types (documented partial — deep type validation lives in the S24 audit list).
+    if field["type"] == "singleSelect" and value is not None:
+        choices = field.setdefault("options", {}).setdefault("choices", [])
+        if value not in {c["name"] for c in choices}:
+            if not typecast:
+                raise errors.invalid_value_for_column(
+                    f'Field {field["name"]} can not accept value "{value}"'
+                )
+            choices.append({"id": ids.select_id(), "name": value, "color": "blueLight2"})
+    return value
+
+
+def _build_record(table: dict, item, typecast: bool) -> dict:
+    if not isinstance(item, dict) or not isinstance(item.get("fields"), dict):
+        raise errors.invalid_request_missing_fields()
+    by_name = {f["name"]: f for f in table["fields"]}
+    validated = {}
+    for key, value in item["fields"].items():
+        field = by_name.get(key)
+        if field is None:
+            raise errors.unknown_field_name(key)
+        validated[key] = _coerce_value(field, value, typecast)
+    return {
+        "id": ids.record_id(),
+        "createdTime": clock.stamp(),
+        "fields": recordutil.clean_fields(validated),
+    }
+
+
+@router.post("/v0/{base_id}/{table_id_or_name}")
+def create_records(base_id: str, table_id_or_name: str, _: WriteToken, body: Annotated[dict, Body()]) -> dict:
+    table = _resolve_table(base_id, table_id_or_name)
+    typecast = bool(body.get("typecast", False))
+    by_id = bool(body.get("returnFieldsByFieldId", False))
+    name_to_id = {f["name"]: f["id"] for f in table["fields"]}
+
+    if "records" in body:
+        items = body["records"]
+        if not isinstance(items, list):
+            raise errors.invalid_request()
+        if len(items) > 10:
+            raise errors.invalid_request("Too many records; the maximum is 10 per request.")
+        built = [_build_record(table, item, typecast) for item in items]  # validate all before commit
+        for record in built:
+            table["records"][record["id"]] = record
+        return {"records": [_present(r, by_id, name_to_id) for r in built]}
+
+    if "fields" in body:
+        record = _build_record(table, body, typecast)
+        table["records"][record["id"]] = record
+        return _present(record, by_id, name_to_id)
+
+    raise errors.invalid_request_missing_fields()
