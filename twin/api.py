@@ -1,12 +1,13 @@
 """FastAPI application factory.
 
-Builds the app and mounts the routers. Kept thin: behavior lives in the
-per-family routers and the shared modules (store, auth, errors, ...).
-Later steps register the real Airtable routers and exception handlers here.
+Builds the app, mounts the routers, and installs the Airtable-shaped exception
+handlers. Kept thin: behavior lives in the per-family routers and the shared
+modules (store, auth, errors, ...).
 """
 
 from fastapi import FastAPI
 
+from twin import errors
 from twin.routers import control, example
 
 
@@ -18,6 +19,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(control.router)
     app.include_router(example.router)
+    errors.register_handlers(app)
     return app
 
 

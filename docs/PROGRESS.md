@@ -1,12 +1,13 @@
 # Progress Log
 
-> **Resume here:** S5 (store + seed + deterministic reset) complete — `store.py`/`seed.py`, richer
-> `/_arga/admin/state` with counts, 16 tests passing. **Next → S6: real error model** (`twin/errors.py`) —
-> the dual Airtable envelope (object + bare-string), the status/type catalog from SPEC §4, and FastAPI
-> exception handlers that override the default 422.
+> **Resume here:** S6 (Airtable error model) complete — `errors.py` with the dual envelope, the verified
+> catalog (verbatim messages), and handlers (custom errors + 422 override + unmatched-route NOT_FOUND);
+> 26 tests passing. **Next → S7: real PAT auth** (`twin/auth.py`) — `Authorization: Bearer pat…`,
+> distinguishing missing/invalid (401 `AUTHENTICATION_REQUIRED`) from insufficient scope (403), seeding a
+> valid token in the store + documenting an invalid one.
 
-**Last updated:** 2026-06-16 — S5
-**Current phase:** Phase 1 — Foundation (S6 next)
+**Last updated:** 2026-06-16 — S6
+**Current phase:** Phase 1 — Foundation (S7 next)
 
 ## Checklist
 ### Phase 0 — Setup & Research
@@ -17,7 +18,7 @@
 - [x] S3 twin/ skeleton + control endpoints ported
 - [x] S4 Deterministic IDs + clock
 - [x] S5 Store + reset + richer /state
-- [ ] S6 Error model + handlers
+- [x] S6 Error model + handlers
 - [ ] S7 Auth (missing/invalid/scope)
 - [ ] S8 Seed graph
 ### Phase 2 — Records API
@@ -96,5 +97,6 @@ S2 resolved the big ones (see outcome above). Remaining unconfirmed items live i
 - Package: `twin/{api,config,ids,clock,store,errors,auth}.py` + `twin/routers/{control,example}.py`; `app.py` re-exports `twin.api:app`.
 - `store.py` + `seed.py` are real; `/_arga/admin/reset` resets ids+clock+state deterministically. Stable seed IDs: CRM base `app1MrVfxTUgJuBm0`, Contacts table `tblSopvR8A6870fpC` (3 records).
 - `twin/routers/example.py` is a TEMPORARY placeholder — delete it in S9 when the real records routes land.
-- `twin/{errors,auth}.py` still hold the starter's placeholder logic — rebuilt in S6/S7.
+- `errors.py` is real (catalog + handlers: AirtableError, 422 override, unmatched-route NOT_FOUND). `provider_error` lingers only for the example router.
+- `twin/auth.py` still holds the starter placeholder (`Bearer sk_test_twin_123`, used by example) — real PAT auth added alongside it in S7.
 - `seed.py` is minimal (1 base) — S8 expands it to the full graph (2 bases, all field types, links, comments, a webhook).
