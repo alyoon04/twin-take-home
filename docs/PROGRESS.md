@@ -1,11 +1,11 @@
 # Progress Log
 
-> **Resume here:** S2 (fidelity research) complete — `AIRTABLE_SPEC.md` populated (2148 lines, 10
-> sections, 5 independently verified). **Next → S3: extract the `twin/` package skeleton** and port the
-> control endpoints into it, keeping `app:app` importable and the 4 starter tests green.
+> **Resume here:** S3 (twin/ package skeleton) complete — control + temporary example routes ported,
+> `app:app` imports, 4 starter tests green. **Next → S4: deterministic IDs + clock** (`twin/ids.py`,
+> `SEED_CLOCK` in `twin/config.py`) with unit tests proving identical output across runs.
 
-**Last updated:** 2026-06-16 — S2
-**Current phase:** Phase 1 — Foundation (S3 next)
+**Last updated:** 2026-06-16 — S3
+**Current phase:** Phase 1 — Foundation (S4 next)
 
 ## Checklist
 ### Phase 0 — Setup & Research
@@ -13,7 +13,7 @@
 - [x] S1 Baseline verification (uv sync, pytest, docker build)
 - [x] S2 Fidelity research → AIRTABLE_SPEC.md  `[FAN-OUT]`
 ### Phase 1 — Foundation
-- [ ] S3 twin/ skeleton + control endpoints ported
+- [x] S3 twin/ skeleton + control endpoints ported
 - [ ] S4 Deterministic IDs + clock
 - [ ] S5 Store + reset + richer /state
 - [ ] S6 Error model + handlers
@@ -92,5 +92,6 @@ S2 resolved the big ones (see outcome above). Remaining unconfirmed items live i
 
 ## Notes for the next session
 - `AIRTABLE_SPEC.md` is the build's source of truth — read the relevant section before each step.
-- `app.py` is still the untouched starter; the `twin/` package does not exist yet (created next, in S3).
-- Uncommitted: S0 docs + the S2 spec. Suggested commits: the S0/S1 docs first, then the S2 spec separately.
+- Package now exists: `twin/{api,store,errors,auth}.py` + `twin/routers/{control,example}.py`; `app.py` is a thin re-export of `twin.api:app`.
+- `twin/routers/example.py` is a TEMPORARY placeholder — delete it in S9 when the real records routes land.
+- `twin/{store,errors,auth}.py` still hold the starter's placeholder logic — rebuilt in S5/S6/S7.
