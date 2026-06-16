@@ -9,7 +9,8 @@ Living design doc. Update it whenever a convention changes. Pairs with
 | `app.py` (root) | Thin re-export `from twin.api import app`. Keeps `app:app` stable. |
 | `twin/api.py` | App factory: build FastAPI, register routers, exception handlers, middleware. |
 | `twin/config.py` | Constants: valid PAT(s) + scopes, seed base IDs, rate-limit thresholds, `SEED_CLOCK`. |
-| `twin/ids.py` | Deterministic ID generators per type (`app/tbl/fld/viw/rec/usr/...`) from seeded counters. |
+| `twin/ids.py` | Deterministic ID generators per type (`app/tbl/fld/viw/rec/usr/com/ach`) from seeded counters. |
+| `twin/clock.py` | Deterministic clock: fixed seed instant + fixed step. `reset()` / `stamp()` / `now_iso()`. |
 | `twin/store.py` | The in-memory state object + `reset()` + deterministic clock + counters. Single source of mutable state. |
 | `twin/seed.py` | Builds the default object graph (bases→tables→fields→views→records, user, webhook). |
 | `twin/errors.py` | Error types + helpers + FastAPI exception handlers. Owns the response envelope. |
@@ -26,7 +27,7 @@ uniformity is what makes the twin read as one real API.
 
 ## Invariants (authoritative)
 - **Entry:** `app:app` importable; control endpoints always mounted.
-- **Determinism:** all non-determinism funnels through `ids.py` + `store.clock`.
+- **Determinism:** all non-determinism funnels through `ids.py` + `clock.py` (the store resets both).
   Forbidden in value generation: `uuid`, `datetime.now`, `time.time`, `random`.
   A guard test greps the package for these.
 - **State:** all mutable state lives in `store`; routers hold no module-level mutable data.
@@ -40,9 +41,11 @@ uniformity is what makes the twin read as one real API.
 IDs are stable, readable, and identical across runs after reset.
 
 ## Determinism design
-- `SEED_CLOCK` = a fixed ISO instant in `config.py`. A record's `createdTime` = the
-  current clock value; the clock advances by a fixed delta per mutation. `reset()` restores it.
-- Per-type ID counters reset to their seed baseline on `reset()`.
+- `config.SEED_INSTANT` = a fixed UTC instant; `clock.stamp()` returns the current value as
+  Airtable-style ISO 8601 (`...Z`, ms precision) and advances by `config.CLOCK_STEP`; `clock.reset()` restores it.
+- `ids.make_id(prefix, counter)` is a pure hash → base62 suffix; `ids.next_id(prefix)` walks a per-prefix
+  counter; `ids.reset_counters()` clears them. The store calls `clock.reset()` + `ids.reset_counters()` on reset (from S5).
+- A guard test (`tests/test_determinism.py`) scans `twin/` for entropy sources (`uuid`/`random`/wall-clock) and fails the build if any appear.
 
 ## Pagination
 Offset = an opaque, deterministic token encoding (table, position). Default

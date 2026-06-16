@@ -1,11 +1,12 @@
 # Progress Log
 
-> **Resume here:** S3 (twin/ package skeleton) complete — control + temporary example routes ported,
-> `app:app` imports, 4 starter tests green. **Next → S4: deterministic IDs + clock** (`twin/ids.py`,
-> `SEED_CLOCK` in `twin/config.py`) with unit tests proving identical output across runs.
+> **Resume here:** S4 (deterministic IDs + clock) complete — `config.py`/`ids.py`/`clock.py` + a
+> determinism test suite (12 tests passing total, incl. an entropy guard over `twin/`). **Next → S5: build
+> the real `twin/store.py`** — seedable in-memory store owning state + per-prefix ID counters + the clock,
+> with `reset()` wiring `ids.reset_counters()` + `clock.reset()`, and a richer `/_arga/admin/state`.
 
-**Last updated:** 2026-06-16 — S3
-**Current phase:** Phase 1 — Foundation (S4 next)
+**Last updated:** 2026-06-16 — S4
+**Current phase:** Phase 1 — Foundation (S5 next)
 
 ## Checklist
 ### Phase 0 — Setup & Research
@@ -14,7 +15,7 @@
 - [x] S2 Fidelity research → AIRTABLE_SPEC.md  `[FAN-OUT]`
 ### Phase 1 — Foundation
 - [x] S3 twin/ skeleton + control endpoints ported
-- [ ] S4 Deterministic IDs + clock
+- [x] S4 Deterministic IDs + clock
 - [ ] S5 Store + reset + richer /state
 - [ ] S6 Error model + handlers
 - [ ] S7 Auth (missing/invalid/scope)
@@ -92,6 +93,7 @@ S2 resolved the big ones (see outcome above). Remaining unconfirmed items live i
 
 ## Notes for the next session
 - `AIRTABLE_SPEC.md` is the build's source of truth — read the relevant section before each step.
-- Package now exists: `twin/{api,store,errors,auth}.py` + `twin/routers/{control,example}.py`; `app.py` is a thin re-export of `twin.api:app`.
+- Package: `twin/{api,config,ids,clock,store,errors,auth}.py` + `twin/routers/{control,example}.py`; `app.py` re-exports `twin.api:app`.
+- `ids.py`/`clock.py` are done + tested but NOT yet wired into `/_arga/admin/reset` — S5's store does that.
 - `twin/routers/example.py` is a TEMPORARY placeholder — delete it in S9 when the real records routes land.
 - `twin/{store,errors,auth}.py` still hold the starter's placeholder logic — rebuilt in S5/S6/S7.
