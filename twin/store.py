@@ -1,24 +1,43 @@
-"""In-memory twin state.
+"""In-memory state for the twin — the single source of mutable state.
 
-S3: ported as-is from the starter (a plain dict + in-place reset).
-S5 replaces this with the deterministic store (seed graph, fixed clock,
-per-type ID counters) described in docs/ARCHITECTURE.md.
+``reset_state()`` rebuilds from ``seed.build()`` and resets the deterministic id
+counters + clock, so ``POST /_arga/admin/reset`` makes the twin byte-identical
+across runs. ``snapshot()`` is the debug view returned by ``/_arga/admin/state``.
 """
 
 from copy import deepcopy
 
-DEFAULT_STATE = {
-    "provider": "airtable",
-    "example_resources": [
-        {"id": "res_twin_001", "object": "example_resource", "name": "Seed resource"}
-    ],
-}
+from twin import clock, ids, seed
 
-# Mutated in place by reset_state() so module-level references stay valid.
-state = deepcopy(DEFAULT_STATE)
+# Live state. Built once at import from the deterministic seed, then mutated in
+# place by reset_state() so module-level references (the routers) stay valid.
+state = seed.build()
 
 
 def reset_state() -> None:
-    """Reset state to the deterministic default."""
+    """Reset to the deterministic default: clear counters + clock, rebuild seed."""
+    ids.reset_counters()
+    clock.reset()
+    fresh = seed.build()
     state.clear()
-    state.update(deepcopy(DEFAULT_STATE))
+    state.update(fresh)
+
+
+def _counts() -> dict:
+    bases = state.get("bases", {})
+    tables = [t for b in bases.values() for t in b["tables"].values()]
+    return {
+        "bases": len(bases),
+        "tables": len(tables),
+        "records": sum(len(t["records"]) for t in tables),
+        "users": len(state.get("users", {})),
+        "webhooks": len(state.get("webhooks", {})),
+        "example_resources": len(state.get("example_resources", [])),
+    }
+
+
+def snapshot() -> dict:
+    """Debug snapshot for /_arga/admin/state: full state plus a counts summary."""
+    snap = deepcopy(state)
+    snap["counts"] = _counts()
+    return snap

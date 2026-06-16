@@ -1,12 +1,12 @@
 # Progress Log
 
-> **Resume here:** S4 (deterministic IDs + clock) complete — `config.py`/`ids.py`/`clock.py` + a
-> determinism test suite (12 tests passing total, incl. an entropy guard over `twin/`). **Next → S5: build
-> the real `twin/store.py`** — seedable in-memory store owning state + per-prefix ID counters + the clock,
-> with `reset()` wiring `ids.reset_counters()` + `clock.reset()`, and a richer `/_arga/admin/state`.
+> **Resume here:** S5 (store + seed + deterministic reset) complete — `store.py`/`seed.py`, richer
+> `/_arga/admin/state` with counts, 16 tests passing. **Next → S6: real error model** (`twin/errors.py`) —
+> the dual Airtable envelope (object + bare-string), the status/type catalog from SPEC §4, and FastAPI
+> exception handlers that override the default 422.
 
-**Last updated:** 2026-06-16 — S4
-**Current phase:** Phase 1 — Foundation (S5 next)
+**Last updated:** 2026-06-16 — S5
+**Current phase:** Phase 1 — Foundation (S6 next)
 
 ## Checklist
 ### Phase 0 — Setup & Research
@@ -16,7 +16,7 @@
 ### Phase 1 — Foundation
 - [x] S3 twin/ skeleton + control endpoints ported
 - [x] S4 Deterministic IDs + clock
-- [ ] S5 Store + reset + richer /state
+- [x] S5 Store + reset + richer /state
 - [ ] S6 Error model + handlers
 - [ ] S7 Auth (missing/invalid/scope)
 - [ ] S8 Seed graph
@@ -94,6 +94,7 @@ S2 resolved the big ones (see outcome above). Remaining unconfirmed items live i
 ## Notes for the next session
 - `AIRTABLE_SPEC.md` is the build's source of truth — read the relevant section before each step.
 - Package: `twin/{api,config,ids,clock,store,errors,auth}.py` + `twin/routers/{control,example}.py`; `app.py` re-exports `twin.api:app`.
-- `ids.py`/`clock.py` are done + tested but NOT yet wired into `/_arga/admin/reset` — S5's store does that.
+- `store.py` + `seed.py` are real; `/_arga/admin/reset` resets ids+clock+state deterministically. Stable seed IDs: CRM base `app1MrVfxTUgJuBm0`, Contacts table `tblSopvR8A6870fpC` (3 records).
 - `twin/routers/example.py` is a TEMPORARY placeholder — delete it in S9 when the real records routes land.
-- `twin/{store,errors,auth}.py` still hold the starter's placeholder logic — rebuilt in S5/S6/S7.
+- `twin/{errors,auth}.py` still hold the starter's placeholder logic — rebuilt in S6/S7.
+- `seed.py` is minimal (1 base) — S8 expands it to the full graph (2 bases, all field types, links, comments, a webhook).

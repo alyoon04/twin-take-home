@@ -1,10 +1,7 @@
 """Arga control endpoints: health, state snapshot, deterministic reset.
 
-These are required by the Arga validator regardless of provider and must always
-work (see CLAUDE.md). S5 enriches the /admin/state snapshot.
+Required by the Arga validator regardless of provider; must always work.
 """
-
-from copy import deepcopy
 
 from fastapi import APIRouter
 
@@ -20,7 +17,7 @@ def healthz() -> dict[str, str]:
 
 @router.get("/_arga/admin/state")
 def admin_state() -> dict:
-    return deepcopy(store.state)
+    return store.snapshot()
 
 
 @router.post("/_arga/admin/reset")
