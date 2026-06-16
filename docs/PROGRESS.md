@@ -1,17 +1,17 @@
 # Progress Log
 
-> **Resume here:** S1 (baseline verification) complete — toolchain + Docker green (see Baseline below).
-> **Next → S2: fidelity research `[FAN-OUT]`** — multi-agent workflow that reads the official
-> Airtable API reference and populates `AIRTABLE_SPEC.md` with verified, cited shapes.
+> **Resume here:** S2 (fidelity research) complete — `AIRTABLE_SPEC.md` populated (2148 lines, 10
+> sections, 5 independently verified). **Next → S3: extract the `twin/` package skeleton** and port the
+> control endpoints into it, keeping `app:app` importable and the 4 starter tests green.
 
-**Last updated:** 2026-06-16 — S1
-**Current phase:** Phase 0 — Setup & Research
+**Last updated:** 2026-06-16 — S2
+**Current phase:** Phase 1 — Foundation (S3 next)
 
 ## Checklist
 ### Phase 0 — Setup & Research
 - [x] S0 Planning + docs scaffolding
 - [x] S1 Baseline verification (uv sync, pytest, docker build)
-- [ ] S2 Fidelity research → AIRTABLE_SPEC.md  `[FAN-OUT]`
+- [x] S2 Fidelity research → AIRTABLE_SPEC.md  `[FAN-OUT]`
 ### Phase 1 — Foundation
 - [ ] S3 twin/ skeleton + control endpoints ported
 - [ ] S4 Deterministic IDs + clock
@@ -51,6 +51,25 @@
 - Container runtime smoke: `docker run -p 8080:8080` → `GET /_arga/healthz` → `{"status":"ok"}` (uvicorn on 0.0.0.0:8080).
 - Gotcha for `verify.py` (S22): health takes ~1s; the port proxy resets the connection before uvicorn is ready, so the verifier must **retry on connection-reset**, not just connection-refused.
 
+## S2 research outcome (2026-06-16) — load-bearing facts for the build
+10 sections vs official docs (5 high / 5 medium confidence); 5 critical sections independently
+re-verified — all 5 surfaced real corrections, now authoritative in `AIRTABLE_SPEC.md`. Essentials:
+
+- **IDs:** 17 chars = 3-char lowercase prefix + 14× `[0-9A-Za-z]`. base `app`, table `tbl`, field `fld`,
+  view `viw`, record `rec`, user `usr`, comment `com`, webhook `ach`. Generator emits this; validator stays
+  lenient (charset/length not a documented invariant).
+- **Two error envelopes coexist (official):** object `{"error":{"type","message"}}` AND bare string
+  `{"error":"NOT_FOUND"}`. Object-form 404 is `{"error":{"type":"NOT_FOUND"}}` with **no** `message`. `errors.py` supports both.
+- **429 = singular envelope** `{"error":{"type":"RATE_LIMIT_REACHED","message":"Rate limit exceeded. Please try again later"}}`
+  (no trailing period) — NOT a plural array. Limits: 5 req/s/base + 50 req/s/token; 30s cooldown; no `Retry-After` on 429.
+- **List paging:** `pageSize` default 100 / max 100; `maxRecords` caps total; **stale/unknown `offset` →
+  `422 LIST_RECORDS_ITERATOR_NOT_AVAILABLE`**; `cellFormat=string` needs `timeZone`+`userLocale`; `sort` overrides `view`;
+  GET & POST `/listRecords` (16,000-char URL limit); `INVALID_FILTER_BY_FORMULA` is 422.
+- **filterByFormula exclusion set:** `0, false, "", NaN, [], #Error!`.
+- **Status set:** 200, 400, 401, 403, 404, 413, 422, 429, 500, 502, 503. 422 includes `FAILED_STATE_CHECK`.
+- **Auth:** `Authorization: Bearer <pat…|oauth>`; Basic rejected; `api_key` query param unsupported. 401
+  `AUTHENTICATION_REQUIRED`; 403 `INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND` (verbatim). Don't enforce PAT length.
+
 ## Decision log
 - **2026-06-16** — Provider = **Airtable Web API** (user-confirmed). Rationale: compact +
   fully completable surface, native list/query semantics, clean reproducible errors.
@@ -58,12 +77,20 @@
   multi-agent only for S2 (fidelity research) and S24 (adversarial audit). Parallelizing
   the build would cause cross-family inconsistency, which is exactly what fails fidelity.
 - **2026-06-16** — **Zero new runtime deps**; determinism via seeded IDs + a fixed seed clock.
+- **2026-06-16 (S2)** — Source of truth = `AIRTABLE_SPEC.md`; per step, read its relevant section.
+  Verifier `⚠` notes override the section drafts they annotate.
+- **2026-06-16 (S2)** — Adversarial verification changed real decisions: 429 uses the **singular** error
+  envelope (not the plural-array third-party shape); stale offset → `422 LIST_RECORDS_ITERATOR_NOT_AVAILABLE`;
+  404 supports both bare-string and message-less object forms.
 
-## Open questions / to verify (resolve in S2)
-- Exact Airtable error envelopes (object `{"error":{type,message}}` vs string `{"error":"NOT_FOUND"}`) per endpoint.
-- `filterByFormula` subset boundary — which operators/functions we support vs document as a gap.
-- Exact 429 body + headers and whether real Airtable returns extra rate-limit headers.
+## Open questions (carried to build / S24 audit)
+S2 resolved the big ones (see outcome above). Remaining unconfirmed items live in `AIRTABLE_SPEC.md`
+→ "Open questions & low-confidence items". Notable ones to settle while implementing:
+- Exact `type`/`message` for 400, 413, 500 (official docs don't enumerate them).
+- `filterByFormula` subset boundary — finalize in S11 from SPEC §7's recommendation.
+- Per-route choice of bare-string vs object 404 envelope (docs show both; not disambiguated).
 
 ## Notes for the next session
-- Nothing in flight. Working tree should be clean after S0 is committed.
-- `app.py` is still the untouched starter; the `twin/` package does not exist yet (created in S3).
+- `AIRTABLE_SPEC.md` is the build's source of truth — read the relevant section before each step.
+- `app.py` is still the untouched starter; the `twin/` package does not exist yet (created next, in S3).
+- Uncommitted: S0 docs + the S2 spec. Suggested commits: the S0/S1 docs first, then the S2 spec separately.
