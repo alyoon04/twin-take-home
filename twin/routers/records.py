@@ -321,7 +321,7 @@ def _batch_update(base_id, table_id_or_name, body, destructive):
             raise errors.invalid_request_missing_fields()
         record = table["records"].get(item["id"])
         if record is None:
-            raise errors.not_found(bare=True)
+            raise errors.row_does_not_exist(item["id"])
         prepared.append((record, _validate_fields(table, item["fields"], typecast)))
     for record, validated in prepared:
         _apply_validated(record, validated, destructive)
@@ -351,7 +351,7 @@ def _upsert(table, body, typecast, by_id, name_to_id, destructive):
         if "id" in item:
             record = table["records"].get(item["id"])
             if record is None:
-                raise errors.not_found(bare=True)
+                raise errors.row_does_not_exist(item["id"])
             plan.append(("update", record, validated))
             continue
         matched = [
@@ -388,3 +388,32 @@ def patch_records(base_id: str, table_id_or_name: str, _: WriteToken, body: Anno
 @router.put("/v0/{base_id}/{table_id_or_name}")
 def put_records(base_id: str, table_id_or_name: str, _: WriteToken, body: Annotated[dict, Body()]) -> dict:
     return _batch_update(base_id, table_id_or_name, body, destructive=True)
+
+
+# --- delete (S14) ---------------------------------------------------------
+
+def _delete_one(table: dict, record_id: str) -> dict:
+    if record_id not in table["records"]:
+        raise errors.record_not_found()
+    del table["records"][record_id]
+    return {"deleted": True, "id": record_id}
+
+
+@router.delete("/v0/{base_id}/{table_id_or_name}/{record_id}")
+def delete_record(base_id: str, table_id_or_name: str, record_id: str, _: WriteToken) -> dict:
+    table = _resolve_table(base_id, table_id_or_name)
+    return _delete_one(table, record_id)
+
+
+@router.delete("/v0/{base_id}/{table_id_or_name}")
+def delete_records(base_id: str, table_id_or_name: str, request: Request, _: WriteToken) -> dict:
+    table = _resolve_table(base_id, table_id_or_name)
+    record_ids = request.query_params.getlist("records[]") or request.query_params.getlist("records")
+    if not record_ids:
+        raise errors.invalid_request()
+    if len(record_ids) > 10:
+        raise errors.invalid_request("Too many records; the maximum is 10 per request.")
+    for rid in record_ids:  # atomic: all must exist before any deletion
+        if rid not in table["records"]:
+            raise errors.record_not_found()
+    return {"records": [_delete_one(table, rid) for rid in record_ids]}

@@ -128,6 +128,20 @@ def invalid_filter_by_formula(
     return error_object(status.HTTP_422_UNPROCESSABLE_ENTITY, "INVALID_FILTER_BY_FORMULA", message)
 
 
+def record_not_found() -> AirtableError:
+    """404 — a referenced record id does not exist (delete / single-record write); object form."""
+    return error_object(status.HTTP_404_NOT_FOUND, "MODEL_ID_NOT_FOUND", "Record not found")
+
+
+def row_does_not_exist(record_id: str) -> AirtableError:
+    """422 — a batch update/upsert referenced a non-existent record id."""
+    return error_object(
+        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        "ROW_DOES_NOT_EXIST",
+        f"Record ID {record_id} does not exist in this table",
+    )
+
+
 def rate_limit_reached() -> AirtableError:
     """429 — singular envelope (NOT a plural array); message has no trailing period."""
     return error_object(

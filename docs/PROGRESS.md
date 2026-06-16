@@ -1,12 +1,12 @@
 # Progress Log
 
-> **Resume here:** S13 (records update) complete — PATCH (merge) + PUT (clear-omitted), single + batch
-> (≤10), upsert (`fieldsToMergeOn`: 0→create / 1→update / 2+→422, with `createdRecords`/`updatedRecords`);
-> record-404 + validation reuse the create path; 80 tests passing. **Next → S14: records delete** —
-> DELETE single + batch (`?records[]=…`), `{deleted:true}` shapes.
+> **Resume here:** S14 (records delete) complete — DELETE single (`{deleted:true,id}`) + batch (`?records[]=`,
+> ≤10), missing record → 404 `MODEL_ID_NOT_FOUND`; batch-update missing id → 422 `ROW_DOES_NOT_EXIST`;
+> 86 tests passing. **Phase 2 (Records API) DONE.** **Next → S15 (Phase 3): Meta API** — whoami, list bases,
+> base schema; **register the meta router BEFORE the records router** in `api.py`.
 
-**Last updated:** 2026-06-16 — S13
-**Current phase:** Phase 2 — Records API (S14 next)
+**Last updated:** 2026-06-16 — S14
+**Current phase:** Phase 3 — Meta / Comments / Webhooks (S15 next)
 
 ## Checklist
 ### Phase 0 — Setup & Research
@@ -26,7 +26,7 @@
 - [x] S11 filterByFormula subset
 - [x] S12 Records create (single/batch/typecast/validation)
 - [x] S13 Records update (patch/put/upsert)
-- [ ] S14 Records delete (single/batch)
+- [x] S14 Records delete (single/batch)
 ### Phase 3 — Meta / Comments / Webhooks
 - [ ] S15 Meta read (whoami/bases/schema)
 - [ ] S16 Meta write (create/update base/table/field)
@@ -98,7 +98,8 @@ S2 resolved the big ones (see outcome above). Remaining unconfirmed items live i
 - `errors.py` real (AirtableError catalog + handlers: 422 override, unmatched-route NOT_FOUND). **Data-API not-found uses `not_found(bare=True)` → `{"error":"NOT_FOUND"}`.**
 - `auth.py` real: `get_token` + `require_scope(scope)`. Fake creds: `config.VALID_PAT` (full), `config.READONLY_PAT` (read-only), `config.INVALID_PAT_EXAMPLE` (invalid).
 - `seed.py` full graph: CRM/Contacts (5) + Project Tracker/Projects (3) + Tasks (5), Projects↔Tasks links. Records hold only non-empty cells (`seed._clean`) — **S12/S13 writes must apply the same rule.** Comments + webhook arrive in S17/S18.
-- `records.py`: read + query + **create + update** (PATCH merge / PUT clear, single+batch, upsert via `_validate_fields`/`_apply_validated`). Create/update validate missing-fields / unknown-field / batch>10 / invalid-select; `typecast` auto-creates select options. **Type validation is strict for singleSelect, lenient for other types — documented partial for the S24 audit.** Deferred query gaps: `view`, `cellFormat=string`/`timeZone`/`userLocale`. S14 adds delete.
+- `records.py`: **Records API COMPLETE** — read / query / create / update (PATCH+PUT, batch, upsert) / delete. `typecast` auto-creates select options; type validation strict for singleSelect, lenient otherwise (documented partial for S24). Deferred query gaps: `view`, `cellFormat=string`/`timeZone`/`userLocale`.
+- **404 nuance (medium-confidence — flag for S24):** GET-missing-record → bare `NOT_FOUND`; DELETE/single-write missing record → `MODEL_ID_NOT_FOUND` (404); batch-update/upsert missing id → `ROW_DOES_NOT_EXIST` (422); unknown base/table/route → bare `NOT_FOUND`.
 - `recordutil.clean_fields` = the shared "omit empty cells" rule (used by seed + writes).
 - `formula.py`: filterByFormula subset (recursive-descent). Out of scope (documented): date/time, regex, array/rollup, record-meta functions.
 - Pagination `offset` = `itr<index>/<recordId>` (opaque, deterministic); `_decode_offset` raises iterator-422 on bad/stale values.

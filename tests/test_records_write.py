@@ -173,3 +173,53 @@ def test_update_requires_write_scope() -> None:
     rid = next(iter(contacts["records"]))
     r = client.patch(f"/v0/{base}/Contacts/{rid}", headers=RO, json={"fields": {"Name": "X"}})
     assert r.status_code == 403
+
+
+# --- delete ---
+
+def test_delete_single() -> None:
+    base, contacts = _contacts()
+    rid = next(iter(contacts["records"]))
+    r = client.delete(f"/v0/{base}/Contacts/{rid}", headers=H)
+    assert r.status_code == 200
+    assert r.json() == {"deleted": True, "id": rid}
+    assert client.get(f"/v0/{base}/Contacts/{rid}", headers=H).status_code == 404
+    assert len(client.get(f"/v0/{base}/Contacts", headers=H).json()["records"]) == 4
+
+
+def test_delete_batch() -> None:
+    base, contacts = _contacts()
+    rids = list(contacts["records"])[:2]
+    r = client.delete(f"/v0/{base}/Contacts?records[]={rids[0]}&records[]={rids[1]}", headers=H)
+    assert r.status_code == 200
+    assert r.json() == {"records": [{"deleted": True, "id": rids[0]}, {"deleted": True, "id": rids[1]}]}
+    assert len(client.get(f"/v0/{base}/Contacts", headers=H).json()["records"]) == 3
+
+
+def test_delete_missing_is_404_model_id_not_found() -> None:
+    base = _crm()
+    r = client.delete(f"/v0/{base}/Contacts/recNope0000000000", headers=H)
+    assert r.status_code == 404
+    assert r.json() == {"error": {"type": "MODEL_ID_NOT_FOUND", "message": "Record not found"}}
+
+
+def test_batch_update_missing_id_is_422_row_does_not_exist() -> None:
+    base = _crm()
+    r = client.patch(f"/v0/{base}/Contacts", headers=H,
+                     json={"records": [{"id": "recNope0000000000", "fields": {"Name": "X"}}]})
+    assert r.status_code == 422
+    assert r.json()["error"]["type"] == "ROW_DOES_NOT_EXIST"
+
+
+def test_delete_requires_write_scope() -> None:
+    base, contacts = _contacts()
+    rid = next(iter(contacts["records"]))
+    assert client.delete(f"/v0/{base}/Contacts/{rid}", headers=RO).status_code == 403
+
+
+def test_delete_then_reset_restores() -> None:
+    base, contacts = _contacts()
+    rid = next(iter(contacts["records"]))
+    client.delete(f"/v0/{base}/Contacts/{rid}", headers=H)
+    store.reset_state()
+    assert len(client.get(f"/v0/{base}/Contacts", headers=H).json()["records"]) == 5
