@@ -1,16 +1,16 @@
 # Progress Log
 
-> **Resume here:** S0 (planning + docs scaffolding) complete.
-> **Next → S1: baseline verification** — `uv sync`, `uv run pytest`, `docker build`
-> on the untouched starter; record results below. Then S2 (fidelity research).
+> **Resume here:** S1 (baseline verification) complete — toolchain + Docker green (see Baseline below).
+> **Next → S2: fidelity research `[FAN-OUT]`** — multi-agent workflow that reads the official
+> Airtable API reference and populates `AIRTABLE_SPEC.md` with verified, cited shapes.
 
-**Last updated:** 2026-06-16 — S0
+**Last updated:** 2026-06-16 — S1
 **Current phase:** Phase 0 — Setup & Research
 
 ## Checklist
 ### Phase 0 — Setup & Research
 - [x] S0 Planning + docs scaffolding
-- [ ] S1 Baseline verification (uv sync, pytest, docker build)
+- [x] S1 Baseline verification (uv sync, pytest, docker build)
 - [ ] S2 Fidelity research → AIRTABLE_SPEC.md  `[FAN-OUT]`
 ### Phase 1 — Foundation
 - [ ] S3 twin/ skeleton + control endpoints ported
@@ -42,6 +42,14 @@
 - [ ] S24 Fidelity + completeness audit  `[FAN-OUT]`
 - [ ] S25 Fix findings + re-audit clean
 - [ ] S26 Final verification + submission polish
+
+## Baseline (S1) — verified 2026-06-16
+- Tooling: uv 0.11.21, Docker 28.3.3 (daemon up). `.python-version` = 3.12 → uv provisioned CPython 3.12.13.
+- `uv sync`: OK — 25 packages (fastapi 0.115.6, uvicorn 0.34.0, pytest 8.3.4, httpx 0.28.1).
+- `uv run pytest`: **4/4 passed** (`tests/test_control.py`).
+- `docker build -t candidate-twin .`: OK — image `candidate-twin` (sha256 `669d2097…`).
+- Container runtime smoke: `docker run -p 8080:8080` → `GET /_arga/healthz` → `{"status":"ok"}` (uvicorn on 0.0.0.0:8080).
+- Gotcha for `verify.py` (S22): health takes ~1s; the port proxy resets the connection before uvicorn is ready, so the verifier must **retry on connection-reset**, not just connection-refused.
 
 ## Decision log
 - **2026-06-16** — Provider = **Airtable Web API** (user-confirmed). Rationale: compact +
