@@ -1,12 +1,12 @@
 # Progress Log
 
-> **Resume here:** S9 (records read) complete — `routers/records.py` (list + get, table by id/name,
-> bare-string 404, read-scope auth); example scaffolding fully retired (router/seed/legacy-auth/
-> `provider_error` gone); 42 tests passing. **Next → S10: list query semantics** — `pageSize`/`maxRecords`/
-> `offset` pagination, `fields[]` projection, multi-key `sort[]` (filterByFormula is S11).
+> **Resume here:** S10 (list query) complete — pagination (`pageSize`/`maxRecords`/opaque `offset`),
+> `fields[]` projection, multi-key `sort[]`, `returnFieldsByFieldId`, POST `/listRecords`; stale/garbage
+> offset → `422 LIST_RECORDS_ITERATOR_NOT_AVAILABLE`; 52 tests passing. **Next → S11: filterByFormula subset**
+> (`twin/formula.py`) per SPEC §7 — literals, `{Field}` refs, comparisons, `AND/OR/NOT`, a few functions.
 
-**Last updated:** 2026-06-16 — S9
-**Current phase:** Phase 2 — Records API (S10 next)
+**Last updated:** 2026-06-16 — S10
+**Current phase:** Phase 2 — Records API (S11 next)
 
 ## Checklist
 ### Phase 0 — Setup & Research
@@ -22,7 +22,7 @@
 - [x] S8 Seed graph
 ### Phase 2 — Records API
 - [x] S9 Records read (list + get + 404)
-- [ ] S10 List query (pagination, fields[], sort[])
+- [x] S10 List query (pagination, fields[], sort[])
 - [ ] S11 filterByFormula subset
 - [ ] S12 Records create (single/batch/typecast/validation)
 - [ ] S13 Records update (patch/put/upsert)
@@ -98,4 +98,5 @@ S2 resolved the big ones (see outcome above). Remaining unconfirmed items live i
 - `errors.py` real (AirtableError catalog + handlers: 422 override, unmatched-route NOT_FOUND). **Data-API not-found uses `not_found(bare=True)` → `{"error":"NOT_FOUND"}`.**
 - `auth.py` real: `get_token` + `require_scope(scope)`. Fake creds: `config.VALID_PAT` (full), `config.READONLY_PAT` (read-only), `config.INVALID_PAT_EXAMPLE` (invalid).
 - `seed.py` full graph: CRM/Contacts (5) + Project Tracker/Projects (3) + Tasks (5), Projects↔Tasks links. Records hold only non-empty cells (`seed._clean`) — **S12/S13 writes must apply the same rule.** Comments + webhook arrive in S17/S18.
-- `records.py` read-only so far (list + get). S10 adds query params; S12–S14 add create/update/delete (write scope).
+- `records.py`: read + query — list (pagination/projection/sort/`returnFieldsByFieldId`), POST `/listRecords`, get. Deferred gaps: `filterByFormula` (S11), `view`, `cellFormat=string`/`timeZone`/`userLocale`. S12–S14 add create/update/delete (write scope).
+- Pagination `offset` = `itr<index>/<recordId>` (opaque, deterministic); `_decode_offset` raises iterator-422 on bad/stale values.

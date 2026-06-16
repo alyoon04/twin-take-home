@@ -112,6 +112,15 @@ def failed_state_check(
     return error_object(status.HTTP_422_UNPROCESSABLE_ENTITY, "FAILED_STATE_CHECK", message)
 
 
+def list_records_iterator_not_available() -> AirtableError:
+    """422 — stale/unknown list-records pagination offset (offset is time-windowed)."""
+    return error_object(
+        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        "LIST_RECORDS_ITERATOR_NOT_AVAILABLE",
+        "The list records iterator is no longer available. Restart pagination without an offset.",
+    )
+
+
 def rate_limit_reached() -> AirtableError:
     """429 — singular envelope (NOT a plural array); message has no trailing period."""
     return error_object(

@@ -23,6 +23,7 @@ valid *and* invalid inputs**, plus **completeness** of the documented surface.
 ## Workflow
 - **One step from `docs/PLAN.md` per commit.** Small, reviewable diffs.
 - Before every commit: `uv run pytest` is green and `from app import app` works.
+- **Run verification proactively, without asking** (standing instruction): `pytest` every step; a `docker build` + container smoke test at milestones and whenever Docker-affecting files change (`Dockerfile`, `pyproject.toml`, `uv.lock`).
 - After every step: update `docs/PROGRESS.md` — tick the box, move **"Resume here"**, append any decision.
 - Build the coupled core **solo**, in one context. Use multi-agent workflows **only** for the
   steps flagged `[FAN-OUT]` (S2 research, S24 audit), where independent perspectives help.
