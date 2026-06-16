@@ -219,16 +219,30 @@ def _coerce_value(field: dict, value, typecast: bool):
     return value
 
 
-def _build_record(table: dict, item, typecast: bool) -> dict:
-    if not isinstance(item, dict) or not isinstance(item.get("fields"), dict):
-        raise errors.invalid_request_missing_fields()
+def _validate_fields(table: dict, incoming: dict, typecast: bool) -> dict:
     by_name = {f["name"]: f for f in table["fields"]}
-    validated = {}
-    for key, value in item["fields"].items():
+    out = {}
+    for key, value in incoming.items():
         field = by_name.get(key)
         if field is None:
             raise errors.unknown_field_name(key)
-        validated[key] = _coerce_value(field, value, typecast)
+        out[key] = _coerce_value(field, value, typecast)
+    return out
+
+
+def _apply_validated(record: dict, validated: dict, destructive: bool) -> None:
+    if destructive:  # PUT — clears cells not included
+        record["fields"] = recordutil.clean_fields(validated)
+    else:  # PATCH — merges into existing
+        merged = dict(record["fields"])
+        merged.update(validated)
+        record["fields"] = recordutil.clean_fields(merged)
+
+
+def _build_record(table: dict, item, typecast: bool) -> dict:
+    if not isinstance(item, dict) or not isinstance(item.get("fields"), dict):
+        raise errors.invalid_request_missing_fields()
+    validated = _validate_fields(table, item["fields"], typecast)
     return {
         "id": ids.record_id(),
         "createdTime": clock.stamp(),
@@ -260,3 +274,117 @@ def create_records(base_id: str, table_id_or_name: str, _: WriteToken, body: Ann
         return _present(record, by_id, name_to_id)
 
     raise errors.invalid_request_missing_fields()
+
+
+# --- update / upsert (S13) ------------------------------------------------
+
+def _single_update(base_id, table_id_or_name, record_id, body, destructive):
+    table = _resolve_table(base_id, table_id_or_name)
+    if not isinstance(body.get("fields"), dict):
+        raise errors.invalid_request_missing_fields()
+    record = table["records"].get(record_id)
+    if record is None:
+        raise errors.not_found(bare=True)
+    name_to_id = {f["name"]: f["id"] for f in table["fields"]}
+    validated = _validate_fields(table, body["fields"], bool(body.get("typecast", False)))
+    _apply_validated(record, validated, destructive)
+    return _present(record, bool(body.get("returnFieldsByFieldId", False)), name_to_id)
+
+
+@router.patch("/v0/{base_id}/{table_id_or_name}/{record_id}")
+def patch_record(base_id: str, table_id_or_name: str, record_id: str, _: WriteToken, body: Annotated[dict, Body()]) -> dict:
+    return _single_update(base_id, table_id_or_name, record_id, body, destructive=False)
+
+
+@router.put("/v0/{base_id}/{table_id_or_name}/{record_id}")
+def put_record(base_id: str, table_id_or_name: str, record_id: str, _: WriteToken, body: Annotated[dict, Body()]) -> dict:
+    return _single_update(base_id, table_id_or_name, record_id, body, destructive=True)
+
+
+def _batch_update(base_id, table_id_or_name, body, destructive):
+    table = _resolve_table(base_id, table_id_or_name)
+    typecast = bool(body.get("typecast", False))
+    by_id = bool(body.get("returnFieldsByFieldId", False))
+    name_to_id = {f["name"]: f["id"] for f in table["fields"]}
+
+    if "performUpsert" in body:
+        return _upsert(table, body, typecast, by_id, name_to_id, destructive)
+
+    items = body.get("records")
+    if not isinstance(items, list):
+        raise errors.invalid_request()
+    if len(items) > 10:
+        raise errors.invalid_request("Too many records; the maximum is 10 per request.")
+    prepared = []
+    for item in items:
+        if not isinstance(item, dict) or "id" not in item or not isinstance(item.get("fields"), dict):
+            raise errors.invalid_request_missing_fields()
+        record = table["records"].get(item["id"])
+        if record is None:
+            raise errors.not_found(bare=True)
+        prepared.append((record, _validate_fields(table, item["fields"], typecast)))
+    for record, validated in prepared:
+        _apply_validated(record, validated, destructive)
+    return {"records": [_present(r, by_id, name_to_id) for r, _ in prepared]}
+
+
+def _upsert(table, body, typecast, by_id, name_to_id, destructive):
+    upsert = body.get("performUpsert")
+    merge_fields = upsert.get("fieldsToMergeOn") if isinstance(upsert, dict) else None
+    if not isinstance(merge_fields, list) or not (1 <= len(merge_fields) <= 3):
+        raise errors.invalid_request()
+    by_name = {f["name"] for f in table["fields"]}
+    for mf in merge_fields:
+        if mf not in by_name:
+            raise errors.unknown_field_name(mf)
+    items = body.get("records")
+    if not isinstance(items, list):
+        raise errors.invalid_request()
+    if len(items) > 10:
+        raise errors.invalid_request("Too many records; the maximum is 10 per request.")
+
+    plan = []
+    for item in items:
+        if not isinstance(item, dict) or not isinstance(item.get("fields"), dict):
+            raise errors.invalid_request_missing_fields()
+        validated = _validate_fields(table, item["fields"], typecast)
+        if "id" in item:
+            record = table["records"].get(item["id"])
+            if record is None:
+                raise errors.not_found(bare=True)
+            plan.append(("update", record, validated))
+            continue
+        matched = [
+            r for r in table["records"].values()
+            if all(r["fields"].get(mf) == item["fields"].get(mf) for mf in merge_fields)
+        ]
+        if len(matched) > 1:
+            raise errors.invalid_request("Multiple records matched the upsert merge fields.")
+        plan.append(("update", matched[0], validated) if matched else ("create", None, validated))
+
+    created_ids, updated_ids, result = [], [], []
+    for kind, record, validated in plan:
+        if kind == "create":
+            rid = ids.record_id()
+            record = {"id": rid, "createdTime": clock.stamp(), "fields": recordutil.clean_fields(validated)}
+            table["records"][rid] = record
+            created_ids.append(rid)
+        else:
+            _apply_validated(record, validated, destructive)
+            updated_ids.append(record["id"])
+        result.append(record)
+    return {
+        "records": [_present(r, by_id, name_to_id) for r in result],
+        "createdRecords": created_ids,
+        "updatedRecords": updated_ids,
+    }
+
+
+@router.patch("/v0/{base_id}/{table_id_or_name}")
+def patch_records(base_id: str, table_id_or_name: str, _: WriteToken, body: Annotated[dict, Body()]) -> dict:
+    return _batch_update(base_id, table_id_or_name, body, destructive=False)
+
+
+@router.put("/v0/{base_id}/{table_id_or_name}")
+def put_records(base_id: str, table_id_or_name: str, _: WriteToken, body: Annotated[dict, Body()]) -> dict:
+    return _batch_update(base_id, table_id_or_name, body, destructive=True)

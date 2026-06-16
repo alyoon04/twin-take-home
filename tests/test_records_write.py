@@ -97,3 +97,79 @@ def test_create_is_deterministic_across_reset() -> None:
     base2 = _crm()
     r2 = client.post(f"/v0/{base2}/Contacts", headers=H, json={"fields": {"Name": "Z"}}).json()
     assert r1["id"] == r2["id"] and r1["createdTime"] == r2["createdTime"]
+
+
+# --- update / upsert ---
+
+def _contacts() -> tuple[str, dict]:
+    base = _crm()
+    contacts = next(t for t in store.state["bases"][base]["tables"].values() if t["name"] == "Contacts")
+    return base, contacts
+
+
+def test_patch_merges_partial() -> None:
+    base, contacts = _contacts()
+    rid = next(iter(contacts["records"]))
+    r = client.patch(f"/v0/{base}/Contacts/{rid}", headers=H, json={"fields": {"Company": "Updated Inc"}})
+    assert r.status_code == 200
+    fields = r.json()["fields"]
+    assert fields["Company"] == "Updated Inc"
+    assert fields["Name"] == "Ada Lovelace"  # untouched fields preserved
+
+
+def test_put_clears_omitted() -> None:
+    base, contacts = _contacts()
+    rid = next(iter(contacts["records"]))
+    r = client.put(f"/v0/{base}/Contacts/{rid}", headers=H, json={"fields": {"Name": "Only Name"}})
+    assert r.status_code == 200
+    assert r.json()["fields"] == {"Name": "Only Name"}  # Email/Company/Active cleared
+
+
+def test_patch_unknown_record_is_404() -> None:
+    base = _crm()
+    r = client.patch(f"/v0/{base}/Contacts/recNope0000000000", headers=H, json={"fields": {"Name": "X"}})
+    assert r.status_code == 404
+    assert r.json() == {"error": "NOT_FOUND"}
+
+
+def test_batch_patch_by_id() -> None:
+    base, contacts = _contacts()
+    rids = list(contacts["records"])[:2]
+    r = client.patch(f"/v0/{base}/Contacts", headers=H, json={"records": [
+        {"id": rids[0], "fields": {"Company": "C0"}},
+        {"id": rids[1], "fields": {"Company": "C1"}},
+    ]})
+    assert r.status_code == 200
+    assert [rec["fields"]["Company"] for rec in r.json()["records"]] == ["C0", "C1"]
+
+
+def test_upsert_updates_existing() -> None:
+    base = _crm()
+    r = client.patch(f"/v0/{base}/Contacts", headers=H, json={
+        "performUpsert": {"fieldsToMergeOn": ["Name"]},
+        "records": [{"fields": {"Name": "Ada Lovelace", "Company": "Babbage Co"}}],
+    })
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body["updatedRecords"]) == 1 and body["createdRecords"] == []
+    assert body["records"][0]["fields"]["Company"] == "Babbage Co"
+    assert len(client.get(f"/v0/{base}/Contacts", headers=H).json()["records"]) == 5  # no new record
+
+
+def test_upsert_creates_when_no_match() -> None:
+    base = _crm()
+    r = client.patch(f"/v0/{base}/Contacts", headers=H, json={
+        "performUpsert": {"fieldsToMergeOn": ["Name"]},
+        "records": [{"fields": {"Name": "Brand New"}}],
+    })
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body["createdRecords"]) == 1 and body["updatedRecords"] == []
+    assert len(client.get(f"/v0/{base}/Contacts", headers=H).json()["records"]) == 6
+
+
+def test_update_requires_write_scope() -> None:
+    base, contacts = _contacts()
+    rid = next(iter(contacts["records"]))
+    r = client.patch(f"/v0/{base}/Contacts/{rid}", headers=RO, json={"fields": {"Name": "X"}})
+    assert r.status_code == 403
