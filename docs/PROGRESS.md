@@ -1,13 +1,12 @@
 # Progress Log
 
-> **Resume here:** S6 (Airtable error model) complete — `errors.py` with the dual envelope, the verified
-> catalog (verbatim messages), and handlers (custom errors + 422 override + unmatched-route NOT_FOUND);
-> 26 tests passing. **Next → S7: real PAT auth** (`twin/auth.py`) — `Authorization: Bearer pat…`,
-> distinguishing missing/invalid (401 `AUTHENTICATION_REQUIRED`) from insufficient scope (403), seeding a
-> valid token in the store + documenting an invalid one.
+> **Resume here:** S7 (real PAT auth) complete — `auth.get_token` + `require_scope`, tokens seeded
+> (full-scope `VALID_PAT` + `READONLY_PAT`), the 401/403 boundary per spec; 32 tests passing. **Next → S8:
+> expand `seed.py`** into the full graph — add a second base (Project Tracker), more field types
+> (singleSelect/number/date/multipleRecordLinks), more records + relationships. Last step of Phase 1.
 
-**Last updated:** 2026-06-16 — S6
-**Current phase:** Phase 1 — Foundation (S7 next)
+**Last updated:** 2026-06-16 — S7
+**Current phase:** Phase 1 — Foundation (S8 next)
 
 ## Checklist
 ### Phase 0 — Setup & Research
@@ -19,7 +18,7 @@
 - [x] S4 Deterministic IDs + clock
 - [x] S5 Store + reset + richer /state
 - [x] S6 Error model + handlers
-- [ ] S7 Auth (missing/invalid/scope)
+- [x] S7 Auth (missing/invalid/scope)
 - [ ] S8 Seed graph
 ### Phase 2 — Records API
 - [ ] S9 Records read (list + get + 404)
@@ -98,5 +97,6 @@ S2 resolved the big ones (see outcome above). Remaining unconfirmed items live i
 - `store.py` + `seed.py` are real; `/_arga/admin/reset` resets ids+clock+state deterministically. Stable seed IDs: CRM base `app1MrVfxTUgJuBm0`, Contacts table `tblSopvR8A6870fpC` (3 records).
 - `twin/routers/example.py` is a TEMPORARY placeholder — delete it in S9 when the real records routes land.
 - `errors.py` is real (catalog + handlers: AirtableError, 422 override, unmatched-route NOT_FOUND). `provider_error` lingers only for the example router.
-- `twin/auth.py` still holds the starter placeholder (`Bearer sk_test_twin_123`, used by example) — real PAT auth added alongside it in S7.
+- `auth.py` is real: `get_token` + `require_scope(scope)` for S9+ routes. Legacy `require_auth` stays for the example router only (removed S9).
+- Fake creds: valid `config.VALID_PAT` (full scope), `config.READONLY_PAT` (read-only), invalid example `config.INVALID_PAT_EXAMPLE`.
 - `seed.py` is minimal (1 base) — S8 expands it to the full graph (2 bases, all field types, links, comments, a webhook).

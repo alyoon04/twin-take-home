@@ -1,27 +1,18 @@
 """Deterministic seed data.
 
-S5: a minimal-but-real seed (one base, one table, typed fields, a few records,
-a user) that exercises the deterministic id/clock path so reset + replay is
-byte-identical. S8 expands this into the full graph (CRM + Project Tracker, all
-field types, linked records, comments, a webhook). Everything is built via
-``ids``/``clock`` from their reset baseline, so every reset reproduces identical
-IDs and timestamps.
+A minimal-but-real seed (one base, one table, typed fields, a few records, a
+user + tokens) that exercises the deterministic id/clock path so reset + replay
+is byte-identical. S8 expands this into the full graph (CRM + Project Tracker,
+all field types, linked records, comments, a webhook). Everything is built via
+``ids``/``clock`` from their reset baseline.
 """
 
-from twin import clock, ids
+from twin import clock, config, ids
 
 # Stable example id carried over from the starter. The temporary example router
 # and the starter tests depend on it; removed in S9.
 _EXAMPLE_RESOURCES = [
     {"id": "res_twin_001", "object": "example_resource", "name": "Seed resource"}
-]
-
-_DEFAULT_SCOPES = [
-    "data.records:read",
-    "data.records:write",
-    "schema.bases:read",
-    "schema.bases:write",
-    "webhook:manage",
 ]
 
 
@@ -33,8 +24,15 @@ def build() -> dict:
             "id": uid,
             "email": "dev@twin.example",
             "name": "Twin Dev",
-            "scopes": list(_DEFAULT_SCOPES),
+            "scopes": list(config.ALL_SCOPES),
         }
+    }
+    tokens = {
+        config.VALID_PAT: {"userId": uid, "scopes": list(config.ALL_SCOPES)},
+        config.READONLY_PAT: {
+            "userId": uid,
+            "scopes": [config.SCOPE_RECORDS_READ, config.SCOPE_SCHEMA_READ],
+        },
     }
 
     crm = _build_crm_base()
@@ -42,6 +40,7 @@ def build() -> dict:
     return {
         "provider": "airtable",
         "users": users,
+        "tokens": tokens,
         "bases": {crm["id"]: crm},
         "webhooks": {},
         "example_resources": [dict(r) for r in _EXAMPLE_RESOURCES],
