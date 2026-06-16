@@ -1,49 +1,29 @@
+"""Arga control endpoints: health, deterministic reset, OpenAPI."""
+
 from fastapi.testclient import TestClient
 
 from app import app
-
 
 client = TestClient(app)
 
 
 def test_healthz() -> None:
     response = client.get("/_arga/healthz")
-
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
 
-def test_reset_restores_seed_state() -> None:
-    client.post(
-        "/v1/example-resources",
-        headers={"Authorization": "Bearer sk_test_twin_123"},
-        json={"name": "Temporary resource"},
-    )
-
-    reset_response = client.post("/_arga/admin/reset")
-    state_response = client.get("/_arga/admin/state")
-
-    assert reset_response.status_code == 200
-    assert state_response.json()["example_resources"] == [
-        {"id": "res_twin_001", "object": "example_resource", "name": "Seed resource"}
-    ]
+def test_reset_restores_seed_counts() -> None:
+    reset = client.post("/_arga/admin/reset")
+    state = client.get("/_arga/admin/state")
+    assert reset.status_code == 200
+    assert reset.json() == {"status": "reset"}
+    counts = state.json()["counts"]
+    assert counts["bases"] == 2
+    assert counts["records"] == 13
 
 
-def test_invalid_auth_is_rejected() -> None:
-    response = client.get(
-        "/v1/example-resources",
-        headers={"Authorization": "Bearer invalid"},
-    )
-
-    assert response.status_code == 401
-    assert response.json()["detail"]["error"]["type"] == "authentication_error"
-
-
-def test_valid_auth_can_list_seeded_resources() -> None:
-    response = client.get(
-        "/v1/example-resources",
-        headers={"Authorization": "Bearer sk_test_twin_123"},
-    )
-
+def test_openapi_schema_is_served() -> None:
+    response = client.get("/openapi.json")
     assert response.status_code == 200
-    assert response.json()["data"][0]["id"] == "res_twin_001"
+    assert response.json()["info"]["title"] == "Airtable Web API Twin"

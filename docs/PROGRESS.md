@@ -1,12 +1,12 @@
 # Progress Log
 
-> **Resume here:** S8 (full seed graph) complete — 2 bases / 3 tables / 13 records, bidirectional
-> Projects↔Tasks links, singleSelect/number/date/checkbox fields, empty cells omitted; 35 tests passing.
-> **Phase 1 (Foundation) DONE.** **Next → S9 (Phase 2): real Records API** — `twin/routers/records.py`
-> with GET list (basic) + GET one + 404; delete the temporary example router and replace its starter tests.
+> **Resume here:** S9 (records read) complete — `routers/records.py` (list + get, table by id/name,
+> bare-string 404, read-scope auth); example scaffolding fully retired (router/seed/legacy-auth/
+> `provider_error` gone); 42 tests passing. **Next → S10: list query semantics** — `pageSize`/`maxRecords`/
+> `offset` pagination, `fields[]` projection, multi-key `sort[]` (filterByFormula is S11).
 
-**Last updated:** 2026-06-16 — S8
-**Current phase:** Phase 2 — Records API (S9 next)
+**Last updated:** 2026-06-16 — S9
+**Current phase:** Phase 2 — Records API (S10 next)
 
 ## Checklist
 ### Phase 0 — Setup & Research
@@ -21,7 +21,7 @@
 - [x] S7 Auth (missing/invalid/scope)
 - [x] S8 Seed graph
 ### Phase 2 — Records API
-- [ ] S9 Records read (list + get + 404)
+- [x] S9 Records read (list + get + 404)
 - [ ] S10 List query (pagination, fields[], sort[])
 - [ ] S11 filterByFormula subset
 - [ ] S12 Records create (single/batch/typecast/validation)
@@ -93,11 +93,9 @@ S2 resolved the big ones (see outcome above). Remaining unconfirmed items live i
 
 ## Notes for the next session
 - `AIRTABLE_SPEC.md` is the build's source of truth — read the relevant section before each step.
-- Package: `twin/{api,config,ids,clock,store,errors,auth}.py` + `twin/routers/{control,example}.py`; `app.py` re-exports `twin.api:app`.
-- `store.py` + `seed.py` are real; `/_arga/admin/reset` resets ids+clock+state deterministically. Stable seed IDs: CRM base `app1MrVfxTUgJuBm0`, Contacts table `tblSopvR8A6870fpC` (3 records).
-- `twin/routers/example.py` is a TEMPORARY placeholder — delete it in S9 when the real records routes land.
-- `errors.py` is real (catalog + handlers: AirtableError, 422 override, unmatched-route NOT_FOUND). `provider_error` lingers only for the example router.
-- `auth.py` is real: `get_token` + `require_scope(scope)` for S9+ routes. Legacy `require_auth` stays for the example router only (removed S9).
-- Fake creds: valid `config.VALID_PAT` (full scope), `config.READONLY_PAT` (read-only), invalid example `config.INVALID_PAT_EXAMPLE`.
-- `seed.py` is the full graph: CRM/Contacts (5) + Project Tracker/Projects (3) + Tasks (5), bidirectional Projects↔Tasks links, singleSelect/number/date/checkbox. (Comments + a webhook arrive with their endpoints in S17/S18.)
-- Records store only non-empty cells (`seed._clean`) — the records create/update steps (S12/S13) must apply the same rule on writes.
+- Package: `twin/{api,config,ids,clock,store,errors,auth}.py` + `twin/routers/{control,records}.py`; `app.py` re-exports `twin.api:app`. **Router order:** the meta router (S15) must be registered BEFORE the generic `records` router (`/v0/meta/*` would otherwise match `/v0/{baseId}/{table}`).
+- `store.py` + `seed.py` real; `/_arga/admin/reset` resets ids+clock+state deterministically. Stable seed IDs: CRM base `app1MrVfxTUgJuBm0`, Contacts table `tblSopvR8A6870fpC` (5 records).
+- `errors.py` real (AirtableError catalog + handlers: 422 override, unmatched-route NOT_FOUND). **Data-API not-found uses `not_found(bare=True)` → `{"error":"NOT_FOUND"}`.**
+- `auth.py` real: `get_token` + `require_scope(scope)`. Fake creds: `config.VALID_PAT` (full), `config.READONLY_PAT` (read-only), `config.INVALID_PAT_EXAMPLE` (invalid).
+- `seed.py` full graph: CRM/Contacts (5) + Project Tracker/Projects (3) + Tasks (5), Projects↔Tasks links. Records hold only non-empty cells (`seed._clean`) — **S12/S13 writes must apply the same rule.** Comments + webhook arrive in S17/S18.
+- `records.py` read-only so far (list + get). S10 adds query params; S12–S14 add create/update/delete (write scope).

@@ -89,4 +89,4 @@ def test_request_validation_is_airtable_shaped() -> None:
 def test_unknown_route_returns_airtable_not_found() -> None:
     r = TestClient(twin_app).get("/v0/this/does/not/exist")
     assert r.status_code == 404
-    assert r.json() == {"error": {"type": "NOT_FOUND"}}
+    assert r.json() == {"error": "NOT_FOUND"}

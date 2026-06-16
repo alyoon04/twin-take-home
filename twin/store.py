@@ -33,7 +33,6 @@ def _counts() -> dict:
         "users": len(state.get("users", {})),
         "tokens": len(state.get("tokens", {})),
         "webhooks": len(state.get("webhooks", {})),
-        "example_resources": len(state.get("example_resources", [])),
     }
 
 

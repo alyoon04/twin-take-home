@@ -13,10 +13,6 @@ which omits empty/false cells from records.
 
 from twin import clock, config, ids
 
-_EXAMPLE_RESOURCES = [
-    {"id": "res_twin_001", "object": "example_resource", "name": "Seed resource"}
-]
-
 _ISO_DATE = {"dateFormat": {"name": "iso", "format": "YYYY-MM-DD"}}
 _CHECKBOX = {"icon": "check", "color": "greenBright"}
 
@@ -49,7 +45,6 @@ def build() -> dict:
         "tokens": tokens,
         "bases": {crm["id"]: crm, tracker["id"]: tracker},
         "webhooks": {},
-        "example_resources": [dict(r) for r in _EXAMPLE_RESOURCES],
     }
 
 

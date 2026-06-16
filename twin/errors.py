@@ -13,7 +13,7 @@ custom errors, the 422 validation override, and unmatched-route 404s.
 
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -130,16 +130,6 @@ def retriable_error() -> AirtableError:
     )
 
 
-# --- legacy shim ----------------------------------------------------------
-
-def provider_error(status_code: int, error_type: str, message: str) -> HTTPException:
-    """Starter helper retained only for the temporary example router (removed in S9)."""
-    return HTTPException(
-        status_code=status_code,
-        detail={"error": {"type": error_type, "message": message}},
-    )
-
-
 # --- handlers -------------------------------------------------------------
 
 def register_handlers(app: FastAPI) -> None:
@@ -161,7 +151,7 @@ def register_handlers(app: FastAPI) -> None:
         # preserve the default {"detail": ...} shape (the temporary example router
         # still relies on it until S9).
         if exc.status_code == status.HTTP_404_NOT_FOUND:
-            err = not_found()
+            err = not_found(bare=True)  # data-API 404s use the bare-string form
             return JSONResponse(status_code=err.status_code, content=err.body)
         return JSONResponse(
             status_code=exc.status_code,

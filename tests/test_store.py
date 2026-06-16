@@ -65,10 +65,3 @@ def test_empty_and_false_cells_are_omitted() -> None:
     contacts = _table("CRM", "Contacts")
     grace = next(r for r in contacts["records"].values() if r["fields"]["Name"] == "Grace Hopper")
     assert "Active" not in grace["fields"]  # checkbox False -> omitted, per Airtable
-
-
-def test_example_resources_preserved_until_s9() -> None:
-    store.reset_state()
-    assert store.state["example_resources"] == [
-        {"id": "res_twin_001", "object": "example_resource", "name": "Seed resource"}
-    ]
