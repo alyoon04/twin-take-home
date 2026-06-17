@@ -1,291 +1,156 @@
-# SaaS Twin Take-Home
+# Airtable Web API Twin
 
-Thanks for taking the time to do this. The goal of this exercise is to build a
-service twin: a local, fake version of a real SaaS API that another app could
-use during development or testing instead of talking to the real provider.
+A local, Dockerized, **fake Airtable** that another app can point at instead of
+`https://api.airtable.com` during development or testing. It speaks the Airtable
+Web API — same paths, request/response shapes, auth style, pagination, and error
+envelopes — backed by deterministic in-memory state.
 
-You may use LLMs, docs, SDKs, code generation, snippets, or any other normal
-developer tools. We care about the final product, your judgment, and whether you
-can explain the tradeoffs you made.
+- **Provider:** [Airtable Web API](https://airtable.com/developers/web/api/introduction)
+- **Why Airtable:** a compact, fully-completable REST surface (Records, Meta, Comments,
+  Webhooks) with rich list semantics (`filterByFormula`, sort, pagination), distinctive
+  IDs, and a clean, reproducible error model — so the twin can cover the *whole* public
+  API faithfully rather than a slice.
 
-This assignment is Python-only. Use Python for the service, tests, scripts, and
-supporting code. Use `uv` for Python package management. This starter uses
-FastAPI, but you may switch to another Python web framework if you prefer.
-
-You can choose any SaaS you want. Once you choose it, you are expected to build
-the full twin for that SaaS API, not a narrow mock or a hand-picked subset.
-
-Pick accordingly. A smaller SaaS with a compact API is completely fine. A huge
-provider with hundreds of endpoints is also fine, but then we will expect broad
-coverage across that provider.
-
-## The Assignment
-
-Pick any SaaS provider and build a Dockerized Python HTTP service that emulates
-its public API.
-
-Good choices include APIs like Slack, Stripe, Linear, Notion, GitHub, HubSpot,
-Discord, Jira, Airtable, Twilio, Shopify, Zendesk, or similar. Some of these are
-large, so picking something more manageable is completely acceptable. You can
-choose something else if it has enough API behavior to be interesting.
-
-## How Arga Will Validate This
-
-Your submission should be a fork of this repo or a standalone repo. Arga's validation system will treat
-it as a black-box service: build the Docker image, start the container, wait for
-the health endpoint, reset deterministic state, then send provider-shaped API
-requests against it.
-
-The `twin-contract.yaml` file is the small handoff document that tells the
-validator and reviewer how to build, run, authenticate, reset, and sample your
-twin. The control endpoints make repeated validation runs deterministic.
-
-## Required Runtime Contract
-
-Your submission must run as a Docker container.
-
-It should listen on `0.0.0.0:8080` inside the container unless there is specific reason not to.
-
-We should be able to run it like this:
+## Quick start
 
 ```bash
 docker build -t candidate-twin .
 docker run --rm -p 8080:8080 candidate-twin
 ```
 
-If your build or run command is different, document the exact commands in your
-README.
+The service listens on `0.0.0.0:8080`. Health check: `curl localhost:8080/_arga/healthz`.
 
-The service must not require real provider credentials or make real external API
-calls. Use fake/dev credentials and local state.
-
-## Control Endpoints
-
-Include these endpoints regardless of which provider you choose:
-
-| Method | Path                 | Purpose                                                                                                    |
-| ------ | -------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `GET`  | `/_arga/healthz`     | Health check. Should return a successful response when the service is ready.                               |
-| `GET`  | `/_arga/admin/state` | Debug snapshot of the twin's current local state.                                                          |
-| `POST` | `/_arga/admin/reset` | Reset state to a "default" or normal state.                                                               |
-| `GET`  | `/openapi.json`      | OpenAPI schema, if your framework supports it. If it does not make sense for your choice, you may skip it. |
-
-`/_arga/admin/reset` should make repeated test runs deterministic. After reset,
-the same sequence of API calls should produce the same results.
-
-## Provider API Requirements
-
-Implement provider-shaped API behavior, not just arbitrary endpoints.
-
-Your twin should include:
-
-- The full documented API surface for the SaaS you chose, or the full public API
-  for a clearly named product within that SaaS if the company exposes multiple
-  separate products.
-- Every major API family needed for that provider to feel complete.
-- Fake auth that resembles the provider's auth style, including auth success
-  and auth failure behavior.
-- Provider-shaped error responses for common failures.
-
-The twin should also include, where those concepts exist in the provider:
-
-- Create, read/list, update, and delete/archive/cancel-style lifecycle behavior
-  where those concepts make sense for the provider.
-- Pagination, filtering, search, or sorting for at least one list endpoint.
-- Realistic state transition(s), for example:
-  - checkout session completion
-  - payment status changes
-  - issue workflow transitions
-  - message threads and reactions
-  - file upload lifecycle
-  - generated events
-  - archived/deleted resource behavior
-
-The SaaS choice is up to you. The scope after that choice is not meant to be a
-small selected slice. If the provider has documented endpoints, include them or
-explicitly call out the small number of exceptions with a good reason.
-
-## State and Data
-
-Use deterministic local state. In-memory state is fine.
-
-Seed the service with enough default data that it is easy to try:
-
-- fake users/accounts
-- fake resources
-- fake credentials
-- IDs that are stable enough for examples
-- enough relationships to exercise the workflow
-
-Do not add a database unless you really need one. If you use one, the Docker
-setup should still be easy to run.
-
-## Auth
-
-Implement fake auth that resembles the provider.
-
-Examples:
-
-- `Authorization: Bearer sk_test_...`
-- raw personal API key
-- provider-specific version or workspace headers
-- OAuth-looking access tokens without doing a real OAuth flow
-
-Document at least one valid fake credential and at least one invalid-auth
-example.
-
-## Errors
-
-Errors should look like the provider where practical.
-
-Include realistic behavior for cases such as:
-
-- missing auth
-- invalid auth
-- resource not found
-- invalid request body
-- unsupported operation
-- duplicate resource
-- invalid state transition
-- rate limit or provider-style throttling, if relevant
-
-Errors should be as similar to the real API as possible.
-
-## Deliverables
-
-Submit a repo containing:
-
-- Source code.
-- `Dockerfile`.
-- `pyproject.toml` and `uv.lock`.
-- Applicant README with:
-  - provider chosen
-  - documented API surface and what is implemented
-  - fake credentials
-  - run commands
-  - example API calls
-  - test commands
-  - any known gaps and why they remain
-- Python tests or a Python verification script, see below.
-- A `twin-contract.yaml` file, described below.
-
-## Starter Repo
-
-This repo includes a small FastAPI shell:
-
-- [app.py](app.py) has the required Arga control endpoints, fake auth helpers,
-  and a placeholder resource family.
-- [Dockerfile](Dockerfile) runs the service on port `8080`.
-- [pyproject.toml](pyproject.toml) and [uv.lock](uv.lock) define the Python
-  environment with `uv`.
-- [tests/test_control.py](tests/test_control.py) verifies the starter control
-  endpoints and fake auth behavior.
-- [twin-contract.yaml](twin-contract.yaml) is a template that you should update
-  for your chosen provider.
-
-Replace the placeholder `/v1/example-resources` routes with provider-shaped
-routes for the SaaS you choose.
-
-## `twin-contract.yaml`
-
-Include a small `twin-contract.yaml` file at the repo root so we can quickly run
-and inspect your twin.
-
-Example:
-
-```yaml
-provider: stripe
-name: Candidate Stripe Twin
-base_url: http://localhost:8080
-
-run:
-  build: docker build -t candidate-twin .
-  start: docker run --rm -p 8080:8080 candidate-twin
-
-auth:
-  valid:
-    header: Authorization
-    value: Bearer sk_test_twin_123
-  invalid:
-    header: Authorization
-    value: Bearer invalid
-
-control:
-  health: GET /_arga/healthz
-  state: GET /_arga/admin/state
-  reset: POST /_arga/admin/reset
-  openapi: GET /openapi.json
-
-examples:
-  - name: List customers
-    method: GET
-    path: /v1/customers
-  - name: Create checkout session
-    method: POST
-    path: /v1/checkout/sessions
-    body:
-      customer: cus_twin_001
-      mode: payment
-```
-
-Use the shape above as a guide. Adjust paths and examples for your provider.
-
-## Tests
-
-Include Python tests and/or a Python verification script that we can run locally.
-
-Good coverage includes, where applicable:
-
-- health check
-- reset behavior
-- valid auth
-- invalid auth
-- list/read seeded resources
-- create a resource
-- update or transition that resource
-- delete/archive/cancel behavior
-- pagination/filtering/search
-- provider-shaped error response
-
-Document the command, for example:
-
-```bash
-uv run pytest
-```
-
-For local development, the starter can be run with:
+Local dev (no Docker):
 
 ```bash
 uv sync
 uv run uvicorn app:app --reload --port 8080
 ```
 
-## What We Will Evaluate
+## Authentication
 
-We will run your Docker image and interact with it as a black-box service.
+Airtable-style bearer tokens (`Authorization: Bearer <token>`). Only the seeded
+fake tokens are accepted; **any other token returns `401`, indistinguishable from a
+missing one** (matching Airtable). The token values are deliberately not shaped like
+real PATs so secret scanners don't flag them — auth is pure string equality.
 
-We will evaluate code quality and README clarity, but most importantly we will
-evaluate how similar your twin is to the real production SaaS, specifically how
-its endpoints respond for both valid and invalid inputs.
+| Credential | Token | Scopes |
+|---|---|---|
+| **Valid (full)** | `Bearer twin-fake-pat_developer_full-scope_DO-NOT-USE` | records r/w, schema r/w, webhook:manage |
+| **Read-only** | `Bearer twin-fake-pat_readonly_DO-NOT-USE` | records:read, schema:read |
+| **Invalid (example)** | `Bearer twin-fake-pat_invalid_example_DO-NOT-USE` | → `401` |
 
-## Things You Do Not Need To Do
+```bash
+# valid
+curl -H "Authorization: Bearer twin-fake-pat_developer_full-scope_DO-NOT-USE" \
+  localhost:8080/v0/app1MrVfxTUgJuBm0/Contacts
+# invalid -> 401 {"error":{"type":"AUTHENTICATION_REQUIRED","message":"Authentication required"}}
+curl -H "Authorization: Bearer nope" localhost:8080/v0/app1MrVfxTUgJuBm0/Contacts
+```
 
-You do not need to:
+## Seed data (deterministic, stable across resets)
 
-- Deploy to a cloud provider.
-- Use real SaaS credentials.
-- Build a beautiful frontend.
-  - Some Arga twins have frontends, but the main evaluation will be on the
-    backend API, not the frontend.
-- Persist data across container restarts.
+| Base | Base ID | Tables |
+|---|---|---|
+| CRM | `app1MrVfxTUgJuBm0` | Contacts (`tblSopvR8A6870fpC`, 5 records) |
+| Project Tracker | `appJwuyfMWjjzLTqL` | Projects (3) · Tasks (5) — bidirectional linked records |
 
-## Tips
+Plus a seeded user, two tokens, 2 comments on the first Contact, and one webhook
+(`achyvqFnzpkVeAs4f`) on the CRM base. IDs and timestamps are generated from seeded
+counters and a fixed clock, so the **same sequence of calls after `reset` always
+produces identical output** (no `uuid`/`datetime.now()`/`random` anywhere).
 
-Pick a provider you already understand or can learn quickly.
+## API surface
 
-Start from the provider's API docs and make an endpoint inventory early. A
-smaller SaaS implemented completely is better than a large SaaS with scattered
-partial coverage.
+The full documented Airtable public API is implemented:
 
-Use the real provider docs to copy names, paths, request shapes, response
-shapes, auth behavior, pagination, and error style.
+| Family | Endpoints |
+|---|---|
+| **Records** | `GET /v0/{baseId}/{table}` (list — `fields[]`, `filterByFormula`, `sort[]`, `pageSize`/`maxRecords`/`offset`, `returnFieldsByFieldId`, `recordMetadata[]=commentCount`) · `POST …/listRecords` · `GET …/{recId}` · `POST …` (create, single/batch≤10, `typecast`) · `PATCH`/`PUT …` & `…/{recId}` (update — merge/replace, batch, upsert via `performUpsert`) · `DELETE …/{recId}` & `DELETE …?records[]=` |
+| **Meta** | `GET /v0/meta/whoami` · `GET /v0/meta/bases` · `GET /v0/meta/bases/{baseId}/tables` · `POST /v0/meta/bases` · `POST`/`PATCH …/tables[/{id}]` · `POST`/`PATCH …/fields[/{id}]` |
+| **Comments** | `GET`/`POST /v0/{baseId}/{table}/{recId}/comments` · `PATCH`/`DELETE …/comments/{commentId}` |
+| **Webhooks** | `POST`/`GET /v0/bases/{baseId}/webhooks` · `DELETE`/`POST …/{webhookId}[/refresh]` · `GET …/{webhookId}/payloads` (the generated-event stream) |
+| **Control** | `GET /_arga/healthz` · `GET /_arga/admin/state` · `POST /_arga/admin/reset` · `POST /_arga/admin/rate-limit` · `GET /openapi.json` (+ `/docs`) |
+
+Error responses mirror Airtable: the dual envelope (object `{"error":{"type","message"}}`
+and bare-string `{"error":"NOT_FOUND"}`), the singular `429 RATE_LIMIT_REACHED`, and the
+verbatim catalog (`AUTHENTICATION_REQUIRED`, `INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND`,
+`UNKNOWN_FIELD_NAME`, `INVALID_VALUE_FOR_COLUMN`, `INVALID_FILTER_BY_FORMULA`,
+`MODEL_ID_NOT_FOUND`, `ROW_DOES_NOT_EXIST`, …).
+
+## Example calls
+
+```bash
+B=app1MrVfxTUgJuBm0
+A='Authorization: Bearer twin-fake-pat_developer_full-scope_DO-NOT-USE'
+
+# list with filter + sort + pagination
+curl -H "$A" "localhost:8080/v0/$B/Contacts?filterByFormula=%7BActive%7D%3DTRUE()&sort[0][field]=Name&pageSize=2"
+
+# create
+curl -X POST -H "$A" -H 'Content-Type: application/json' \
+  -d '{"fields":{"Name":"Ada II","Email":"ada2@example.com","Active":true}}' \
+  "localhost:8080/v0/$B/Contacts"
+
+# update (partial merge) / destructive (PUT) / upsert
+curl -X PATCH -H "$A" -H 'Content-Type: application/json' \
+  -d '{"fields":{"Company":"Arga"}}' "localhost:8080/v0/$B/Contacts/recnrpvne9QsSB5o7"
+
+# base schema, whoami, webhook payloads
+curl -H "$A" "localhost:8080/v0/meta/bases/$B/tables"
+curl -H "$A" "localhost:8080/v0/meta/whoami"
+curl -H "$A" "localhost:8080/v0/bases/$B/webhooks/achyvqFnzpkVeAs4f/payloads"
+```
+
+See [twin-contract.yaml](twin-contract.yaml) for a machine-readable example set.
+
+## Determinism & control endpoints
+
+- `POST /_arga/admin/reset` rebuilds the seed and resets all counters/clock — repeated
+  test runs are byte-identical.
+- `GET /_arga/admin/state` is a debug snapshot (per-collection counts + full state).
+- `POST /_arga/admin/rate-limit` `{"enabled":true,"perBase":5}` enables a deterministic,
+  counter-based per-base rate limiter that then returns `429 RATE_LIMIT_REACHED` once the
+  threshold is exceeded. **Off by default** so normal validation isn't disrupted; `reset`
+  clears and disables it.
+
+## Tests
+
+```bash
+uv run pytest                      # 126 in-process tests
+uv run python scripts/verify.py    # black-box checks against a running container
+```
+
+`scripts/verify.py` mirrors the Arga loop (wait for health → reset → provider-shaped
+requests) and exits non-zero on any failure. It targets `http://localhost:8080` by
+default (override with `TWIN_BASE_URL`).
+
+## Known gaps (deliberate)
+
+- **`filterByFormula`** implements a well-defined subset — literals, `{Field}`/bare refs,
+  comparison/arithmetic/`&`, `AND/OR/NOT/XOR/IF/SWITCH`, and ~20 text/number functions.
+  Date/time, regex, array/rollup, and record-meta functions are out of scope; an unknown
+  field or unparseable formula returns `422 INVALID_FILTER_BY_FORMULA`.
+- **List `cellFormat=string` / `timeZone` / `userLocale`** and **`view`** filtering are
+  not applied (responses use `cellFormat=json`; the seed views are plain grid views).
+- **Field-type validation** is strict for `singleSelect` (with `typecast` option
+  auto-creation); other types accept values leniently.
+- **Comments** reuse the `data.records:*` scopes rather than Airtable's
+  `data.recordComments:*`. **Webhook** `macSecretBase64` is deterministic (this is a fake).
+- A few low-frequency error exacts (`400`/`413`/`500` `type`/`message`) are not enumerated
+  by Airtable's docs, so the twin keeps the closest documented shape. These and the items
+  above are tracked for the fidelity audit.
+- No real **OAuth** flow — PAT-style bearer tokens only (no token endpoint).
+
+## Project layout
+
+```
+app.py                 # entry: re-exports twin.api:app (keeps `app:app`)
+twin/                  # implementation package (api, store, seed, errors, auth,
+                       #   ids, clock, formula, events, recordutil, routers/*)
+tests/                 # pytest suite
+scripts/verify.py      # black-box verifier
+docs/                  # AIRTABLE_SPEC.md (researched source of truth), ARCHITECTURE.md,
+                       #   PLAN.md, PROGRESS.md
+twin-contract.yaml     # Arga handoff contract
+```

@@ -1,5 +1,5 @@
-provider: TODO
-name: Candidate Python SaaS Twin
+provider: airtable
+name: Airtable Web API Twin
 base_url: http://localhost:8080
 
 run:
@@ -7,12 +7,14 @@ run:
   start: docker run --rm -p 8080:8080 candidate-twin
 
 auth:
+  # Bearer token, like a real Airtable personal access token. Only seeded tokens
+  # are accepted; anything else returns 401 (indistinguishable from a missing token).
   valid:
     header: Authorization
-    value: Bearer sk_test_twin_123
+    value: Bearer twin-fake-pat_developer_full-scope_DO-NOT-USE
   invalid:
     header: Authorization
-    value: Bearer invalid
+    value: Bearer twin-fake-pat_invalid_example_DO-NOT-USE
 
 control:
   health: GET /_arga/healthz
@@ -20,14 +22,51 @@ control:
   reset: POST /_arga/admin/reset
   openapi: GET /openapi.json
 
+# Stable, deterministic seed IDs (identical after every reset):
+#   CRM base            app1MrVfxTUgJuBm0   (table: Contacts / tblSopvR8A6870fpC, 5 records)
+#   Project Tracker     appJwuyfMWjjzLTqL   (tables: Projects, Tasks — linked records)
+#   seeded webhook      achyvqFnzpkVeAs4f   (on the CRM base)
 examples:
-  - name: List example resources
+  - name: Whoami
     method: GET
-    path: /v1/example-resources
-  - name: Create example resource
-    method: POST
-    path: /v1/example-resources
-    body:
-      name: Example resource
+    path: /v0/meta/whoami
 
-# TODO: update provider, examples, credentials, and route inventory for your SaaS.
+  - name: List bases
+    method: GET
+    path: /v0/meta/bases
+
+  - name: Get base schema
+    method: GET
+    path: /v0/meta/bases/app1MrVfxTUgJuBm0/tables
+
+  - name: List records
+    method: GET
+    path: /v0/app1MrVfxTUgJuBm0/Contacts
+
+  - name: List records with filter, sort, and pagination
+    method: GET
+    path: /v0/app1MrVfxTUgJuBm0/Contacts?filterByFormula={Active}=TRUE()&sort[0][field]=Name&pageSize=2
+
+  - name: Create a record
+    method: POST
+    path: /v0/app1MrVfxTUgJuBm0/Contacts
+    body:
+      fields:
+        Name: Grace Hopper Jr.
+        Email: grace.jr@example.com
+        Active: true
+
+  - name: Update a record (partial)
+    method: PATCH
+    path: /v0/app1MrVfxTUgJuBm0/Contacts/recnrpvne9QsSB5o7
+    body:
+      fields:
+        Company: Updated Co.
+
+  - name: Delete a record
+    method: DELETE
+    path: /v0/app1MrVfxTUgJuBm0/Contacts/recnrpvne9QsSB5o7
+
+  - name: List webhook payloads (generated events)
+    method: GET
+    path: /v0/bases/app1MrVfxTUgJuBm0/webhooks/achyvqFnzpkVeAs4f/payloads

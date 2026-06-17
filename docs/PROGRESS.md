@@ -1,12 +1,13 @@
 # Progress Log
 
-> **Resume here:** S20 (polish) complete — deterministic `X-Request-Id` on all responses, OpenAPI tag
-> descriptions, error-envelope consistency sweep (no FastAPI `{"detail"}` leaks); 126 tests passing.
-> **Phase 4 (Hardening) DONE.** **Next → S21 (Phase 5): twin-contract.yaml** — fill it out for Airtable
-> (provider, base_url, run cmds, valid+invalid auth, control endpoints, example calls).
+> **Resume here:** S21–S23 (Phase 5: contract / verify / docs) complete — `twin-contract.yaml` (airtable,
+> 9 examples w/ seed IDs), `scripts/verify.py` (16 black-box checks, exit 0 vs the container), README
+> rewritten (provider, coverage matrix, creds, examples, gaps). 126 pytest + 16 verify checks green.
+> **Phase 5 DONE.** **Next → S24 (Phase 6): adversarial fidelity audit** `[FAN-OUT]` — multi-agent review
+> of each family vs the spec/real API for valid + invalid inputs.
 
-**Last updated:** 2026-06-16 — S20
-**Current phase:** Phase 5 — Contract / Verify / Docs (S21 next)
+**Last updated:** 2026-06-16 — S23
+**Current phase:** Phase 6 — Adversarial Audit (S24 next)
 
 ## Checklist
 ### Phase 0 — Setup & Research
@@ -36,9 +37,9 @@
 - [x] S19 Rate limiting (429)
 - [x] S20 Cross-cutting polish (errors, request-id, OpenAPI examples)
 ### Phase 5 — Contract / Verify / Docs
-- [ ] S21 twin-contract.yaml complete
-- [ ] S22 scripts/verify.py
-- [ ] S23 README rewrite
+- [x] S21 twin-contract.yaml complete
+- [x] S22 scripts/verify.py
+- [x] S23 README rewrite
 ### Phase 6 — Adversarial Audit
 - [ ] S24 Fidelity + completeness audit  `[FAN-OUT]`
 - [ ] S25 Fix findings + re-audit clean
