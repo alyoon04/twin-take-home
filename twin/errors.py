@@ -92,11 +92,11 @@ def invalid_request_missing_fields(
 
 
 def unknown_field_name(field_name: str) -> AirtableError:
-    """422 — a referenced field does not exist on the table."""
+    """422 — a referenced field does not exist on the table (message verified live)."""
     return error_object(
         status.HTTP_422_UNPROCESSABLE_ENTITY,
         "UNKNOWN_FIELD_NAME",
-        f"Could not find a field named {field_name}",
+        f'Unknown field name: "{field_name}"',
     )
 
 
@@ -112,33 +112,60 @@ def failed_state_check(
     return error_object(status.HTTP_422_UNPROCESSABLE_ENTITY, "FAILED_STATE_CHECK", message)
 
 
-def list_records_iterator_not_available() -> AirtableError:
-    """422 — stale/unknown list-records pagination offset (offset is time-windowed)."""
+def invalid_page_size() -> AirtableError:
+    """422 — pageSize outside [0, 100] (verified live; message verbatim)."""
     return error_object(
         status.HTTP_422_UNPROCESSABLE_ENTITY,
-        "LIST_RECORDS_ITERATOR_NOT_AVAILABLE",
-        "The list records iterator is no longer available. Restart pagination without an offset.",
+        "INVALID_PAGE_SIZE_ARGUMENT",
+        "Page size argument should be between 0 and 100",
     )
 
 
-def invalid_filter_by_formula(
-    message: str = "The formula for filtering records is invalid. Please check your formula text.",
-) -> AirtableError:
-    """422 — malformed filterByFormula (or an unknown field referenced in it)."""
-    return error_object(status.HTTP_422_UNPROCESSABLE_ENTITY, "INVALID_FILTER_BY_FORMULA", message)
+def invalid_offset_value(offset: str) -> AirtableError:
+    """422 — a malformed pagination offset (verified live). Distinct from a
+    well-formed-but-stale offset, which yields LIST_RECORDS_ITERATOR_NOT_AVAILABLE."""
+    return error_object(
+        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        "INVALID_OFFSET_VALUE",
+        f"The value of offset {offset} is invalid",
+    )
 
 
-def record_not_found() -> AirtableError:
-    """404 — a referenced record id does not exist (delete / single-record write); object form."""
-    return error_object(status.HTTP_404_NOT_FOUND, "MODEL_ID_NOT_FOUND", "Record not found")
+def list_records_iterator_not_available() -> AirtableError:
+    """422 — well-formed but stale/expired pagination offset. Verified live: the
+    body is the message-less object form ``{"error":{"type":"...ITERATOR..."}}``."""
+    return error_object(
+        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        "LIST_RECORDS_ITERATOR_NOT_AVAILABLE",
+    )
 
 
 def row_does_not_exist(record_id: str) -> AirtableError:
-    """422 — a batch update/upsert referenced a non-existent record id."""
+    """422 — a batch update/upsert referenced a non-existent record id (verified live)."""
     return error_object(
         status.HTTP_422_UNPROCESSABLE_ENTITY,
         "ROW_DOES_NOT_EXIST",
         f"Record ID {record_id} does not exist in this table",
+    )
+
+
+def delete_record_not_found(record_id: str) -> AirtableError:
+    """404 — a batch DELETE referenced a non-existent record id. Verified live:
+    object-form NOT_FOUND with this message (distinct from single DELETE → 403)."""
+    return error_object(
+        status.HTTP_404_NOT_FOUND,
+        "NOT_FOUND",
+        f'Could not find a record with ID "{record_id}".',
+    )
+
+
+def invalid_filter_by_formula(detail: str = "Invalid formula. Please check your formula text.") -> AirtableError:
+    """422 — malformed filterByFormula or unknown field. Verified live: message is
+    ``The formula for filtering records is invalid: <detail>``."""
+    return error_object(
+        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        "INVALID_FILTER_BY_FORMULA",
+        f"The formula for filtering records is invalid: {detail}",
     )
 
 

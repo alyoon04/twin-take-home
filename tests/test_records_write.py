@@ -125,11 +125,12 @@ def test_put_clears_omitted() -> None:
     assert r.json()["fields"] == {"Name": "Only Name"}  # Email/Company/Active cleared
 
 
-def test_patch_unknown_record_is_404() -> None:
+def test_patch_unknown_record_is_403_model_not_found() -> None:
+    # Verified live: PATCH on a missing record → 403, not a bare 404.
     base = _crm()
     r = client.patch(f"/v0/{base}/Contacts/recNope0000000000", headers=H, json={"fields": {"Name": "X"}})
-    assert r.status_code == 404
-    assert r.json() == {"error": "NOT_FOUND"}
+    assert r.status_code == 403
+    assert r.json()["error"]["type"] == "INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND"
 
 
 def test_batch_patch_by_id() -> None:
@@ -183,7 +184,7 @@ def test_delete_single() -> None:
     r = client.delete(f"/v0/{base}/Contacts/{rid}", headers=H)
     assert r.status_code == 200
     assert r.json() == {"deleted": True, "id": rid}
-    assert client.get(f"/v0/{base}/Contacts/{rid}", headers=H).status_code == 404
+    assert client.get(f"/v0/{base}/Contacts/{rid}", headers=H).status_code == 403
     assert len(client.get(f"/v0/{base}/Contacts", headers=H).json()["records"]) == 4
 
 
@@ -196,14 +197,25 @@ def test_delete_batch() -> None:
     assert len(client.get(f"/v0/{base}/Contacts", headers=H).json()["records"]) == 3
 
 
-def test_delete_missing_is_404_model_id_not_found() -> None:
+def test_delete_single_missing_is_403_model_not_found() -> None:
+    # Verified live: SINGLE delete of a missing record → 403 (unlike batch delete, below).
     base = _crm()
     r = client.delete(f"/v0/{base}/Contacts/recNope0000000000", headers=H)
+    assert r.status_code == 403
+    assert r.json()["error"]["type"] == "INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND"
+
+
+def test_delete_batch_missing_is_404_not_found() -> None:
+    # Verified live: BATCH delete of a missing id → 404 NOT_FOUND object form with message.
+    base = _crm()
+    r = client.delete(f"/v0/{base}/Contacts?records[]=recNope0000000000", headers=H)
     assert r.status_code == 404
-    assert r.json() == {"error": {"type": "MODEL_ID_NOT_FOUND", "message": "Record not found"}}
+    assert r.json() == {"error": {"type": "NOT_FOUND",
+                                  "message": 'Could not find a record with ID "recNope0000000000".'}}
 
 
 def test_batch_update_missing_id_is_422_row_does_not_exist() -> None:
+    # Verified live: a missing id in a batch update → 422 ROW_DOES_NOT_EXIST.
     base = _crm()
     r = client.patch(f"/v0/{base}/Contacts", headers=H,
                      json={"records": [{"id": "recNope0000000000", "fields": {"Name": "X"}}]})

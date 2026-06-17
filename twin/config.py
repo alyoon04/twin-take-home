@@ -50,12 +50,12 @@ ALL_SCOPES = [
 
 # Documented fake credentials (README + twin-contract.yaml). Only seeded tokens
 # are accepted; any other Bearer value -> 401 (indistinguishable from missing).
-# These are deliberately NOT shaped like real Airtable PATs (no `pat<14>.<64hex>`
-# form) so secret scanners don't flag them; auth is pure string equality, so the
-# literal value is opaque and its shape is irrelevant to behavior.
-VALID_PAT = "twin-fake-pat_developer_full-scope_DO-NOT-USE"
-READONLY_PAT = "twin-fake-pat_readonly_DO-NOT-USE"
-INVALID_PAT_EXAMPLE = "twin-fake-pat_invalid_example_DO-NOT-USE"
+# Shaped like Airtable PATs (`pat<id>.<secret>`) for auth fidelity, but with an
+# obviously-fake, non-hex body so secret scanners don't match them; auth is pure
+# string equality, so the literal value is opaque to behavior.
+VALID_PAT = "patTwinDevFull001.FAKE-not-a-real-secret-do-not-use-full-scope"
+READONLY_PAT = "patTwinReadOnly01.FAKE-not-a-real-secret-do-not-use-readonly"
+INVALID_PAT_EXAMPLE = "patInvalidExmpl01.FAKE-not-a-real-secret-do-not-use-invalid"
 
 # --- Webhooks (AIRTABLE_SPEC.md section 10) -------------------------------
 # Deterministic, fixed expiration (real Airtable: 7 days after creation).

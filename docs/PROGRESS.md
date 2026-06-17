@@ -1,9 +1,9 @@
 # Progress Log
 
-> **Resume here:** ✅ **BUILD COMPLETE (S0–S26).** Final verification green: 135 pytest, `docker build` +
-> `docker run` (brief's exact commands), `verify.py` 16/16 against the container, determinism replay
-> byte-identical. Full Airtable surface (Records, Meta, Comments, Webhooks) + control + audit fixes.
-> Ready for submission.
+> **Resume here:** ✅ **BUILD COMPLETE (S0–S26) + post-audit polish.** 136 pytest, `docker build`/`run`
+> (brief's exact commands), `verify.py` 16/16 vs container, determinism replay byte-identical. Polish:
+> `pat…`-shaped fake tokens (scanner-safe, more auth-faithful) + `reactions` field on the comment object.
+> Full Airtable surface (Records, Meta, Comments, Webhooks) + control. Ready to push.
 
 **Last updated:** 2026-06-17 — S26 (complete)
 **Current phase:** ✅ Complete
@@ -104,7 +104,17 @@ S2 resolved the big ones (see outcome above). Remaining unconfirmed items live i
 - `auth.py` real: `get_token` + `require_scope(scope)`. Fake creds: `config.VALID_PAT` (full), `config.READONLY_PAT` (read-only), `config.INVALID_PAT_EXAMPLE` (invalid).
 - `seed.py` full graph: CRM/Contacts (5) + Project Tracker/Projects (3) + Tasks (5), Projects↔Tasks links. Records hold only non-empty cells (`seed._clean`) — **S12/S13 writes must apply the same rule.** Comments + webhook arrive in S17/S18.
 - `records.py`: **Records API COMPLETE** — read / query / create / update (PATCH+PUT, batch, upsert) / delete. `typecast` auto-creates select options; type validation strict for singleSelect, lenient otherwise (documented partial for S24). Deferred query gaps: `view`, `cellFormat=string`/`timeZone`/`userLocale`.
-- **404 nuance (medium-confidence — flag for S24):** GET-missing-record → bare `NOT_FOUND`; DELETE/single-write missing record → `MODEL_ID_NOT_FOUND` (404); batch-update/upsert missing id → `ROW_DOES_NOT_EXIST` (422); unknown base/table/route → bare `NOT_FOUND`.
+- **Not-found / validation model (LIVE-VERIFIED 2026-06-17 vs real Airtable, read + write — the API is NOT uniform):**
+  - Missing **base** or **unrouted path** → bare `404 {"error":"NOT_FOUND"}`.
+  - Missing **table** (valid base) → `403 INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND`.
+  - Missing **record**, *single* GET/PATCH/PUT/DELETE → `403 INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND`.
+  - Missing id in *batch* update **or** upsert → `422 ROW_DOES_NOT_EXIST` ("Record ID X does not exist in this table").
+  - Missing id in *batch* DELETE → `404 {"error":{"type":"NOT_FOUND","message":"Could not find a record with ID \"X\"."}}`.
+  - `pageSize=0` / `maxRecords=0` → `200` empty; non-numeric pageSize/maxRecords → ignored; pageSize outside [0,100] → `422 INVALID_PAGE_SIZE_ARGUMENT`.
+  - Offset: malformed → `422 INVALID_OFFSET_VALUE`; well-formed-but-stale → `422 LIST_RECORDS_ITERATOR_NOT_AVAILABLE` (message-less object).
+  - `UNKNOWN_FIELD_NAME` message is `Unknown field name: "X"`; `INVALID_FILTER_BY_FORMULA` message is `The formula for filtering records is invalid: <Invalid formula...|Unknown field names: <lowercased>>`.
+  - **Meta API (LIVE-VERIFIED read):** `whoami` (`{id}`), `bases` (`{id,name,permissionLevel}`), and base schema (`tables[].{id,name,primaryFieldId,fields[],views[]}`) all match real shapes. **Missing base in meta → `403 INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND`** (existence-hiding) — fixed in `meta.py:base_schema` (was object-form 404). Note this differs from the *data* API, where a missing base is a bare 404. Meta-**write** missing-model cases (create/update table·field on a missing base/table) remain **unverified** — the test token lacked `schema.bases:write`.
+  - **Known divergence (not yet matched):** real Airtable did NOT enforce the 10-record create limit (created 11, `200`); twin still returns `422` per the documented limit. `maxRecords=-1` has an undocumented quirk on real (returned n-1) not replicated.
 - `recordutil.clean_fields` = the shared "omit empty cells" rule (used by seed + writes).
 - `formula.py`: filterByFormula subset (recursive-descent). Out of scope (documented): date/time, regex, array/rollup, record-meta functions.
 - Pagination `offset` = `itr<index>/<recordId>` (opaque, deterministic); `_decode_offset` raises iterator-422 on bad/stale values.

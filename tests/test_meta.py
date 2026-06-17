@@ -49,9 +49,12 @@ def test_base_schema() -> None:
     assert all(v["type"] == "grid" for v in tasks["views"])
 
 
-def test_base_schema_unknown_base_is_404() -> None:
+def test_base_schema_unknown_base_is_403_model_not_found() -> None:
+    # Verified live: the meta API returns 403 for a missing base (not a 404 like the data API).
     store.reset_state()
-    assert client.get("/v0/meta/bases/appNope0000000000/tables", headers=H).status_code == 404
+    r = client.get("/v0/meta/bases/appNope0000000000/tables", headers=H)
+    assert r.status_code == 403
+    assert r.json()["error"]["type"] == "INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND"
 
 
 def test_base_schema_include_visible_field_ids() -> None:

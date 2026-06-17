@@ -11,10 +11,10 @@ auth:
   # are accepted; anything else returns 401 (indistinguishable from a missing token).
   valid:
     header: Authorization
-    value: Bearer twin-fake-pat_developer_full-scope_DO-NOT-USE
+    value: Bearer patTwinDevFull001.FAKE-not-a-real-secret-do-not-use-full-scope
   invalid:
     header: Authorization
-    value: Bearer twin-fake-pat_invalid_example_DO-NOT-USE
+    value: Bearer patInvalidExmpl01.FAKE-not-a-real-secret-do-not-use-invalid
 
 control:
   health: GET /_arga/healthz

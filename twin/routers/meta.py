@@ -65,7 +65,9 @@ def _table_schema(table: dict, include_visible: bool) -> dict:
 def base_schema(base_id: str, request: Request, _: SchemaRead) -> dict:
     base = store.state["bases"].get(base_id)
     if base is None:
-        raise errors.not_found()  # meta API uses the object-form 404
+        # Verified live: the meta API treats a missing base as a missing *model* →
+        # 403 (existence-hiding), unlike the data API where a missing base is a bare 404.
+        raise errors.invalid_permissions_or_model_not_found()
     include = request.query_params.getlist("include[]") or request.query_params.getlist("include")
     include_visible = "visibleFieldIds" in include
     return {"tables": [_table_schema(t, include_visible) for t in base["tables"].values()]}

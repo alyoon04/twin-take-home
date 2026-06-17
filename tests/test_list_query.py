@@ -53,25 +53,52 @@ def test_return_fields_by_field_id() -> None:
     assert all(k.startswith("fld") for k in r["records"][0]["fields"])
 
 
-def test_pagesize_over_100_is_422() -> None:
+def test_pagesize_over_100_is_invalid_page_size() -> None:
+    # Verified live: pageSize outside [0,100] → INVALID_PAGE_SIZE_ARGUMENT (not generic).
     base = _crm_base()
     r = client.get(f"/v0/{base}/Contacts?pageSize=101", headers=H)
     assert r.status_code == 422
-    assert r.json()["error"]["type"] == "INVALID_REQUEST_UNKNOWN"
+    assert r.json()["error"]["type"] == "INVALID_PAGE_SIZE_ARGUMENT"
+
+
+def test_pagesize_zero_returns_empty_200() -> None:
+    # Verified live: pageSize=0 is valid and returns an empty page with no offset.
+    base = _crm_base()
+    r = client.get(f"/v0/{base}/Contacts?pageSize=0", headers=H)
+    assert r.status_code == 200
+    assert r.json() == {"records": []}
+
+
+def test_non_numeric_pagesize_is_ignored() -> None:
+    # Verified live: a non-numeric pageSize is ignored (falls back to default), not an error.
+    base = _crm_base()
+    r = client.get(f"/v0/{base}/Contacts?pageSize=abc", headers=H)
+    assert r.status_code == 200
+    assert len(r.json()["records"]) == 5
+
+
+def test_maxrecords_zero_returns_empty_200() -> None:
+    # Verified live: maxRecords=0 returns an empty list, 200.
+    base = _crm_base()
+    r = client.get(f"/v0/{base}/Contacts?maxRecords=0", headers=H)
+    assert r.status_code == 200
+    assert r.json() == {"records": []}
 
 
 def test_stale_offset_is_422_iterator() -> None:
+    # Verified live: a well-formed but stale offset → iterator-not-available, message-less.
     base = _crm_base()
     r = client.get(f"/v0/{base}/Contacts?offset=itr999/recZZZZZZZZZZZZZ", headers=H)
     assert r.status_code == 422
-    assert r.json()["error"]["type"] == "LIST_RECORDS_ITERATOR_NOT_AVAILABLE"
+    assert r.json() == {"error": {"type": "LIST_RECORDS_ITERATOR_NOT_AVAILABLE"}}
 
 
-def test_garbage_offset_is_422_iterator() -> None:
+def test_garbage_offset_is_invalid_offset_value() -> None:
+    # Verified live: a malformed offset → INVALID_OFFSET_VALUE (distinct from stale).
     base = _crm_base()
     r = client.get(f"/v0/{base}/Contacts?offset=garbage", headers=H)
     assert r.status_code == 422
-    assert r.json()["error"]["type"] == "LIST_RECORDS_ITERATOR_NOT_AVAILABLE"
+    assert r.json()["error"]["type"] == "INVALID_OFFSET_VALUE"
 
 
 def test_offset_is_deterministic_across_reset() -> None:

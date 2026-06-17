@@ -45,25 +45,28 @@ def test_get_single_record() -> None:
     assert "createdTime" in body and "fields" in body
 
 
-def test_unknown_record_is_404_bare_string() -> None:
+def test_unknown_record_is_403_model_not_found() -> None:
+    # Verified live: a missing record under a valid base+table → 403, not a bare 404.
     base, table = _crm()
     r = client.get(f"/v0/{base['id']}/{table['id']}/recDoesNotExist00", headers=H)
-    assert r.status_code == 404
-    assert r.json() == {"error": "NOT_FOUND"}
+    assert r.status_code == 403
+    assert r.json()["error"]["type"] == "INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND"
 
 
 def test_unknown_base_is_404() -> None:
+    # Verified live: a missing base (routing root) stays a bare 404.
     _crm()
     r = client.get("/v0/appNope0000000000/Contacts", headers=H)
     assert r.status_code == 404
     assert r.json() == {"error": "NOT_FOUND"}
 
 
-def test_unknown_table_is_404() -> None:
+def test_unknown_table_is_403_model_not_found() -> None:
+    # Verified live: a missing table under a valid base → 403, not a bare 404.
     base, _ = _crm()
     r = client.get(f"/v0/{base['id']}/NoSuchTable", headers=H)
-    assert r.status_code == 404
-    assert r.json() == {"error": "NOT_FOUND"}
+    assert r.status_code == 403
+    assert r.json()["error"]["type"] == "INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND"
 
 
 def test_list_requires_auth() -> None:

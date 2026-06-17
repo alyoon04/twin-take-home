@@ -51,7 +51,7 @@ def test_retriable_error_uses_corrected_503_message() -> None:
 
 def test_unknown_field_name_interpolates() -> None:
     e = errors.unknown_field_name("Payment_Type")
-    assert e.body["error"] == {"type": "UNKNOWN_FIELD_NAME", "message": "Could not find a field named Payment_Type"}
+    assert e.body["error"] == {"type": "UNKNOWN_FIELD_NAME", "message": 'Unknown field name: "Payment_Type"'}
 
 
 # --- handlers (integration) -----------------------------------------------

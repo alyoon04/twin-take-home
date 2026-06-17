@@ -1,8 +1,10 @@
 """Records API — read + query (AIRTABLE_SPEC.md sections 5-6).
 
 GET list (pagination / projection / sort), the POST /listRecords variant, and
-GET one. Tables are addressable by id or name. Data-API not-found uses the
-bare-string envelope ``{"error": "NOT_FOUND"}``.
+GET one. Tables are addressable by id or name. Not-found (verified live): a
+missing table or record under a valid base → ``403
+INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND``; only a missing base / unrouted path
+yields the bare-string ``{"error": "NOT_FOUND"}``.
 
 Deferred (documented gaps): ``filterByFormula`` (S11), ``view``, and
 ``cellFormat=string`` / ``timeZone`` / ``userLocale``.
@@ -31,7 +33,10 @@ def _resolve_table(base_id: str, table_id_or_name: str) -> dict:
         (t for t in tables.values() if t["name"] == table_id_or_name), None
     )
     if table is None:
-        raise errors.not_found(bare=True)
+        # Inside a valid base, a missing table is conflated with "no permission":
+        # real API returns 403 INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND (verified live),
+        # not a bare 404 (that form is reserved for a missing base / unrouted path).
+        raise errors.invalid_permissions_or_model_not_found()
     return table
 
 
@@ -68,18 +73,22 @@ def _decode_offset(offset, total: int) -> int:
         return 0
     head = offset[3:].split("/", 1)[0] if offset.startswith("itr") and "/" in offset else None
     if head is None or not head.isdigit():
-        raise errors.list_records_iterator_not_available()
+        raise errors.invalid_offset_value(offset)  # malformed offset
     index = int(head)
     if index < 0 or index >= total:
-        raise errors.list_records_iterator_not_available()
+        raise errors.list_records_iterator_not_available()  # well-formed but stale
     return index
 
 
 def _query_records(table, *, fields, page_size, max_records, offset, sorts, by_id, formula_text=None, comment_count=False) -> dict:
-    if not isinstance(page_size, int) or page_size < 1 or page_size > 100:
-        raise errors.invalid_request()
-    if max_records is not None and (not isinstance(max_records, int) or max_records < 1):
-        raise errors.invalid_request()
+    # Verified live: non-numeric pageSize/maxRecords are ignored (handled in _parse_int);
+    # pageSize must be 0-100 (0 returns an empty page); maxRecords=0 returns empty.
+    if not isinstance(page_size, int) or isinstance(page_size, bool):
+        page_size = 100
+    if page_size < 0 or page_size > 100:
+        raise errors.invalid_page_size()
+    if not isinstance(max_records, int) or isinstance(max_records, bool) or max_records < 0:
+        max_records = None
 
     id_to_name = {f["id"]: f["name"] for f in table["fields"]}
     name_to_id = {f["name"]: f["id"] for f in table["fields"]}
@@ -88,7 +97,11 @@ def _query_records(table, *, fields, page_size, max_records, offset, sorts, by_i
     if formula_text:
         try:
             node = formula.compile_formula(formula_text, set(name_to_id), id_to_name)
-        except formula.FormulaError:
+        except formula.FormulaError as exc:
+            detail = str(exc)
+            if detail.startswith("Unknown field names:"):
+                ref = detail.split(":", 1)[1].strip().lower()
+                raise errors.invalid_filter_by_formula(f"Unknown field names: {ref}")
             raise errors.invalid_filter_by_formula()
         records = [r for r in records if formula.matches(node, r["fields"])]
 
@@ -109,7 +122,7 @@ def _query_records(table, *, fields, page_size, max_records, offset, sorts, by_i
         records_out.append(item)
     out = {"records": records_out}
     next_index = start + len(page)
-    if next_index < total:
+    if page and next_index < total:  # no offset on an empty page (e.g. pageSize=0)
         out["offset"] = _encode_offset(next_index, ordered)
     return out
 
@@ -117,12 +130,13 @@ def _query_records(table, *, fields, page_size, max_records, offset, sorts, by_i
 # --- param extraction -----------------------------------------------------
 
 def _parse_int(value, default):
+    # Verified live: a non-numeric pageSize/maxRecords is ignored, not an error.
     if value is None:
         return default
     try:
         return int(value)
     except (TypeError, ValueError):
-        raise errors.invalid_request()
+        return default
 
 
 def _sorts_from_query(qp) -> list:
@@ -195,7 +209,9 @@ def get_record(base_id: str, table_id_or_name: str, record_id: str, request: Req
     table = _resolve_table(base_id, table_id_or_name)
     record = table["records"].get(record_id)
     if record is None:
-        raise errors.not_found(bare=True)
+        # Missing record under a valid base+table → 403 model-not-found (verified live),
+        # matching Airtable's existence-hiding conflation rather than a bare 404.
+        raise errors.invalid_permissions_or_model_not_found()
     by_id = request.query_params.get("returnFieldsByFieldId") == "true"
     name_to_id = {f["name"]: f["id"] for f in table["fields"]}
     return _present(record, by_id, name_to_id)
@@ -294,7 +310,7 @@ def _single_update(base_id, table_id_or_name, record_id, body, destructive):
         raise errors.invalid_request_missing_fields()
     record = table["records"].get(record_id)
     if record is None:
-        raise errors.not_found(bare=True)
+        raise errors.invalid_permissions_or_model_not_found()
     name_to_id = {f["name"]: f["id"] for f in table["fields"]}
     validated = _validate_fields(table, body["fields"], bool(body.get("typecast", False)))
     _apply_validated(record, validated, destructive)
@@ -332,7 +348,7 @@ def _batch_update(base_id, table_id_or_name, body, destructive):
             raise errors.invalid_request_missing_fields()
         record = table["records"].get(item["id"])
         if record is None:
-            raise errors.row_does_not_exist(item["id"])
+            raise errors.row_does_not_exist(item["id"])  # batch update: verified live
         prepared.append((record, _validate_fields(table, item["fields"], typecast)))
     for record, validated in prepared:
         _apply_validated(record, validated, destructive)
@@ -363,7 +379,7 @@ def _upsert(table, body, typecast, by_id, name_to_id, destructive):
         if "id" in item:
             record = table["records"].get(item["id"])
             if record is None:
-                raise errors.row_does_not_exist(item["id"])
+                raise errors.row_does_not_exist(item["id"])  # upsert explicit id: verified live
             plan.append(("update", record, validated))
             continue
         matched = [
@@ -410,7 +426,7 @@ def put_records(base_id: str, table_id_or_name: str, _: WriteToken, body: Annota
 
 def _delete_one(table: dict, record_id: str) -> dict:
     if record_id not in table["records"]:
-        raise errors.record_not_found()
+        raise errors.invalid_permissions_or_model_not_found()
     del table["records"][record_id]
     return {"deleted": True, "id": record_id}
 
@@ -433,7 +449,7 @@ def delete_records(base_id: str, table_id_or_name: str, request: Request, _: Wri
         raise errors.invalid_request("Too many records; the maximum is 10 per request.")
     for rid in record_ids:  # atomic: all must exist before any deletion
         if rid not in table["records"]:
-            raise errors.record_not_found()
+            raise errors.delete_record_not_found(rid)  # batch delete: verified live (404)
     result = {"records": [_delete_one(table, rid) for rid in record_ids]}
     events.emit_change(table, destroyed=list(record_ids))
     return result

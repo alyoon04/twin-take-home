@@ -339,7 +339,14 @@ The Airtable Web API returns errors in **two distinct JSON shapes**. A faithful 
 The official errors reference shows the **bare-string form is used for `404 Not Found`** (it documents `404 Not Found` → `{ "error": "NOT_FOUND" }`), while **403, 422, 429, and 503 use the object form** ([airtable.com/developers/web/api/errors](https://airtable.com/developers/web/api/errors)). This split is the single most important fidelity detail in this section.
 
 Notes / caveats:
-- For a plain 404 (wrong/unknown base, table, or record path on the data API), the body is the **bare string** `{"error": "NOT_FOUND"}` ([official errors page](https://airtable.com/developers/web/api/errors); corroborated by [community thread on a `tbl…` used as base id returning NOT_FOUND](https://community.airtable.com/t5/development-apis/api-response-quot-not-found-quot/td-p/82528)).
+- **LIVE-VERIFIED 2026-06-17 (resolves the trigger boundary below) — the API is NOT uniform; the missing-record shape depends on the operation:**
+  - Missing **base** (routing root) or **unrouted path** → bare `404 {"error":"NOT_FOUND"}`.
+  - Missing **table** under a valid base → `403 INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND` (existence-hiding conflation).
+  - Missing **record**, *single* GET/PATCH/PUT/DELETE → `403 INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND`.
+  - Missing id in *batch* update / upsert-with-explicit-id → `422 ROW_DOES_NOT_EXIST` ("Record ID X does not exist in this table").
+  - Missing id in *batch* DELETE → `404 {"error":{"type":"NOT_FOUND","message":"Could not find a record with ID \"X\"."}}`.
+  - So `ROW_DOES_NOT_EXIST` (422) *is* real (batch update/upsert), and a message-bearing object `NOT_FOUND` (404) *is* real (batch delete) — but neither fires for a *single*-record operation, which is 403. `MODEL_ID_NOT_FOUND` was not observed.
+- For a plain 404 (wrong/unknown base path on the data API), the body is the **bare string** `{"error": "NOT_FOUND"}` ([official errors page](https://airtable.com/developers/web/api/errors); corroborated by [community thread on a `tbl…` used as base id returning NOT_FOUND](https://community.airtable.com/t5/development-apis/api-response-quot-not-found-quot/td-p/82528)).
 - However, **some 404s from the API are observed in the object form** with a `type` such as `MODEL_ID_NOT_FOUND` (e.g. a deleted table), e.g. `{"error":{"type":"MODEL_ID_NOT_FOUND","message":"Table not found"}}` ([miniExtensions, quoting a real 404 body](https://docs.miniextensions.com/en/articles/5282014-404-error-type-model_id_not_found-message-table-not-found)). So 404 is not exclusively bare-string in practice; see open questions for the exact trigger boundary.
 - A `null` error value (`{"error": null}`) and an error object missing `type` or `message` have both been seen as edge cases that clients defensively parse ([airtable-mcp-server test fixtures](https://github.com/domdomegg/airtable-mcp-server/blob/master/src/enhanceAirtableError.test.ts)); these are not first-class documented forms and a twin need not normally emit them.
 

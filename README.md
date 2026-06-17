@@ -31,18 +31,18 @@ uv run uvicorn app:app --reload --port 8080
 
 Airtable-style bearer tokens (`Authorization: Bearer <token>`). Only the seeded
 fake tokens are accepted; **any other token returns `401`, indistinguishable from a
-missing one** (matching Airtable). The token values are deliberately not shaped like
-real PATs so secret scanners don't flag them — auth is pure string equality.
+missing one** (matching Airtable). The tokens are `pat…`-shaped like real Airtable
+PATs but carry an obviously-fake body, so they won't trip secret scanners.
 
 | Credential | Token | Scopes |
 |---|---|---|
-| **Valid (full)** | `Bearer twin-fake-pat_developer_full-scope_DO-NOT-USE` | records r/w, schema r/w, webhook:manage |
-| **Read-only** | `Bearer twin-fake-pat_readonly_DO-NOT-USE` | records:read, schema:read |
-| **Invalid (example)** | `Bearer twin-fake-pat_invalid_example_DO-NOT-USE` | → `401` |
+| **Valid (full)** | `Bearer patTwinDevFull001.FAKE-not-a-real-secret-do-not-use-full-scope` | records r/w, schema r/w, webhook:manage |
+| **Read-only** | `Bearer patTwinReadOnly01.FAKE-not-a-real-secret-do-not-use-readonly` | records:read, schema:read |
+| **Invalid (example)** | `Bearer patInvalidExmpl01.FAKE-not-a-real-secret-do-not-use-invalid` | → `401` |
 
 ```bash
 # valid
-curl -H "Authorization: Bearer twin-fake-pat_developer_full-scope_DO-NOT-USE" \
+curl -H "Authorization: Bearer patTwinDevFull001.FAKE-not-a-real-secret-do-not-use-full-scope" \
   localhost:8080/v0/app1MrVfxTUgJuBm0/Contacts
 # invalid -> 401 {"error":{"type":"AUTHENTICATION_REQUIRED","message":"Authentication required"}}
 curl -H "Authorization: Bearer nope" localhost:8080/v0/app1MrVfxTUgJuBm0/Contacts
@@ -69,20 +69,21 @@ The full documented Airtable public API is implemented:
 | **Records** | `GET /v0/{baseId}/{table}` (list — `fields[]`, `filterByFormula`, `sort[]`, `pageSize`/`maxRecords`/`offset`, `returnFieldsByFieldId`, `recordMetadata[]=commentCount`) · `POST …/listRecords` · `GET …/{recId}` · `POST …` (create, single/batch≤10, `typecast`) · `PATCH`/`PUT …` & `…/{recId}` (update — merge/replace, batch, upsert via `performUpsert`) · `DELETE …/{recId}` & `DELETE …?records[]=` |
 | **Meta** | `GET /v0/meta/whoami` · `GET /v0/meta/bases` · `GET /v0/meta/bases/{baseId}/tables` · `POST /v0/meta/bases` · `POST`/`PATCH …/tables[/{id}]` · `POST`/`PATCH …/fields[/{id}]` |
 | **Comments** | `GET`/`POST /v0/{baseId}/{table}/{recId}/comments` · `PATCH`/`DELETE …/comments/{commentId}` |
-| **Webhooks** | `POST`/`GET /v0/bases/{baseId}/webhooks` · `DELETE`/`POST …/{webhookId}[/refresh]` · `GET …/{webhookId}/payloads` (the generated-event stream) |
+| **Webhooks** | `POST`/`GET /v0/bases/{baseId}/webhooks` · `DELETE …/{webhookId}` · `POST …/{webhookId}/refresh` · `POST …/{webhookId}/enableNotifications` · `GET …/{webhookId}/payloads` (the generated-event stream) |
 | **Control** | `GET /_arga/healthz` · `GET /_arga/admin/state` · `POST /_arga/admin/reset` · `POST /_arga/admin/rate-limit` · `GET /openapi.json` (+ `/docs`) |
 
 Error responses mirror Airtable: the dual envelope (object `{"error":{"type","message"}}`
 and bare-string `{"error":"NOT_FOUND"}`), the singular `429 RATE_LIMIT_REACHED`, and the
-verbatim catalog (`AUTHENTICATION_REQUIRED`, `INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND`,
+catalog (`AUTHENTICATION_REQUIRED`, `INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND`,
 `UNKNOWN_FIELD_NAME`, `INVALID_VALUE_FOR_COLUMN`, `INVALID_FILTER_BY_FORMULA`,
-`MODEL_ID_NOT_FOUND`, `ROW_DOES_NOT_EXIST`, …).
+`INVALID_PAGE_SIZE_ARGUMENT`, `INVALID_OFFSET_VALUE`, `LIST_RECORDS_ITERATOR_NOT_AVAILABLE`,
+`ROW_DOES_NOT_EXIST`, and more — the full set is in `twin/errors.py`).
 
 ## Example calls
 
 ```bash
 B=app1MrVfxTUgJuBm0
-A='Authorization: Bearer twin-fake-pat_developer_full-scope_DO-NOT-USE'
+A='Authorization: Bearer patTwinDevFull001.FAKE-not-a-real-secret-do-not-use-full-scope'
 
 # list with filter + sort + pagination
 curl -H "$A" "localhost:8080/v0/$B/Contacts?filterByFormula=%7BActive%7D%3DTRUE()&sort[0][field]=Name&pageSize=2"
@@ -117,7 +118,7 @@ See [twin-contract.yaml](twin-contract.yaml) for a machine-readable example set.
 ## Tests
 
 ```bash
-uv run pytest                      # 126 in-process tests
+uv run pytest                      # 139 in-process tests
 uv run python scripts/verify.py    # black-box checks against a running container
 ```
 

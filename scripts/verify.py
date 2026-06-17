@@ -19,8 +19,8 @@ import urllib.parse
 import urllib.request
 
 BASE = os.environ.get("TWIN_BASE_URL", "http://localhost:8080").rstrip("/")
-VALID = "Bearer twin-fake-pat_developer_full-scope_DO-NOT-USE"
-INVALID = "Bearer twin-fake-pat_invalid_example_DO-NOT-USE"
+VALID = "Bearer patTwinDevFull001.FAKE-not-a-real-secret-do-not-use-full-scope"
+INVALID = "Bearer patInvalidExmpl01.FAKE-not-a-real-secret-do-not-use-invalid"
 AUTH = {"Authorization": VALID}
 CRM = "app1MrVfxTUgJuBm0"  # deterministic seed base id
 
@@ -100,7 +100,13 @@ def main():
     check("filterByFormula filters to 1", s == 200 and len(b["records"]) == 1)
 
     s, b = request("GET", f"/v0/{CRM}/Contacts/recDoesNotExist0", AUTH)
-    check("record 404 -> bare {error: NOT_FOUND}", s == 404 and b == {"error": "NOT_FOUND"})
+    check(
+        "missing record -> 403 INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND",
+        s == 403 and b.get("error", {}).get("type") == "INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND",
+    )
+
+    s, b = request("GET", f"/v0/appNope0000000000/Contacts", AUTH)
+    check("missing base -> bare {error: NOT_FOUND}", s == 404 and b == {"error": "NOT_FOUND"})
 
     s, b = request("GET", "/v0/meta/whoami", AUTH)
     check("meta whoami -> usr id", s == 200 and b["id"].startswith("usr"))
