@@ -1,11 +1,11 @@
 # Progress Log
 
-> **Resume here:** S15 (Meta API read) complete — `routers/meta.py` (whoami, list bases, base schema with
-> typed fields + views + `include[]=visibleFieldIds`), registered before records (routing verified);
-> 93 tests passing. **Next → S16: Meta API writes** — create base / create+update table / create+update field.
+> **Resume here:** S16 (Meta API writes) complete — create base/table/field + update table/field
+> (schema:write scope, deterministic ids, field-type immutable on PATCH, created schema reads back);
+> 101 tests passing. **Next → S17: Comments** — list/create/update/delete on a record (`…/{recordId}/comments`).
 
-**Last updated:** 2026-06-16 — S15
-**Current phase:** Phase 3 — Meta / Comments / Webhooks (S16 next)
+**Last updated:** 2026-06-16 — S16
+**Current phase:** Phase 3 — Meta / Comments / Webhooks (S17 next)
 
 ## Checklist
 ### Phase 0 — Setup & Research
@@ -28,7 +28,7 @@
 - [x] S14 Records delete (single/batch)
 ### Phase 3 — Meta / Comments / Webhooks
 - [x] S15 Meta read (whoami/bases/schema)
-- [ ] S16 Meta write (create/update base/table/field)
+- [x] S16 Meta write (create/update base/table/field)
 - [ ] S17 Comments CRUD
 - [ ] S18 Webhooks + payload event log
 ### Phase 4 — Hardening
@@ -93,7 +93,7 @@ S2 resolved the big ones (see outcome above). Remaining unconfirmed items live i
 ## Notes for the next session
 - `AIRTABLE_SPEC.md` is the build's source of truth — read the relevant section before each step.
 - Package: `twin/{api,config,ids,clock,store,errors,auth,formula,recordutil}.py` + `twin/routers/{control,meta,records}.py`; `app.py` re-exports `twin.api:app`. **Router order in `api.py`: control → meta → records** (meta before records so `/v0/meta/*` isn't matched by `/v0/{baseId}/{table}`).
-- `meta.py`: read only so far (whoami, list bases, base schema). S16 adds writes. Meta uses **object-form 404** (`not_found()`), unlike the data API's bare-string.
+- `meta.py`: **complete** — read (whoami, list bases, base schema) + write (create base/table/field, update table/field). Meta uses **object-form 404** (`not_found()`), unlike the data API's bare-string. Field type immutable on PATCH.
 - `store.py` + `seed.py` real; `/_arga/admin/reset` resets ids+clock+state deterministically. Stable seed IDs: CRM base `app1MrVfxTUgJuBm0`, Contacts table `tblSopvR8A6870fpC` (5 records).
 - `errors.py` real (AirtableError catalog + handlers: 422 override, unmatched-route NOT_FOUND). **Data-API not-found uses `not_found(bare=True)` → `{"error":"NOT_FOUND"}`.**
 - `auth.py` real: `get_token` + `require_scope(scope)`. Fake creds: `config.VALID_PAT` (full), `config.READONLY_PAT` (read-only), `config.INVALID_PAT_EXAMPLE` (invalid).
