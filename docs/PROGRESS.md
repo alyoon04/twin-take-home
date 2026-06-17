@@ -1,11 +1,12 @@
 # Progress Log
 
-> **Resume here:** S16 (Meta API writes) complete — create base/table/field + update table/field
-> (schema:write scope, deterministic ids, field-type immutable on PATCH, created schema reads back);
-> 101 tests passing. **Next → S17: Comments** — list/create/update/delete on a record (`…/{recordId}/comments`).
+> **Resume here:** S17 (Comments) complete — list/create/update/delete on `…/{recordId}/comments`
+> (`{id:com…,author,text,createdTime,lastUpdatedTime}`), seeded 2 comments, `recordMetadata[]=commentCount`
+> wired into records; 109 tests passing. **Next → S18: Webhooks** — create/list/delete + payload event log
+> (`/v0/bases/{baseId}/webhooks`); **register before records** like meta/comments.
 
-**Last updated:** 2026-06-16 — S16
-**Current phase:** Phase 3 — Meta / Comments / Webhooks (S17 next)
+**Last updated:** 2026-06-16 — S17
+**Current phase:** Phase 3 — Meta / Comments / Webhooks (S18 next)
 
 ## Checklist
 ### Phase 0 — Setup & Research
@@ -29,7 +30,7 @@
 ### Phase 3 — Meta / Comments / Webhooks
 - [x] S15 Meta read (whoami/bases/schema)
 - [x] S16 Meta write (create/update base/table/field)
-- [ ] S17 Comments CRUD
+- [x] S17 Comments CRUD
 - [ ] S18 Webhooks + payload event log
 ### Phase 4 — Hardening
 - [ ] S19 Rate limiting (429)
@@ -92,7 +93,8 @@ S2 resolved the big ones (see outcome above). Remaining unconfirmed items live i
 
 ## Notes for the next session
 - `AIRTABLE_SPEC.md` is the build's source of truth — read the relevant section before each step.
-- Package: `twin/{api,config,ids,clock,store,errors,auth,formula,recordutil}.py` + `twin/routers/{control,meta,records}.py`; `app.py` re-exports `twin.api:app`. **Router order in `api.py`: control → meta → records** (meta before records so `/v0/meta/*` isn't matched by `/v0/{baseId}/{table}`).
+- Package: `twin/{api,config,ids,clock,store,errors,auth,formula,recordutil}.py` + `twin/routers/{control,meta,comments,records}.py`; `app.py` re-exports `twin.api:app`. **Router order in `api.py`: control → meta → comments → records** (specific paths before generic `/v0/{baseId}/{table}`; webhooks (S18) also registers before records).
+- `comments.py`: list/create/update/delete on a record; `recordMetadata[]=commentCount` wired into records list; stored at `record["comments"]`. **Scope simplification (flag for S24): comments reuse `data.records:read/write`, not Airtable's `data.recordComments:*`.**
 - `meta.py`: **complete** — read (whoami, list bases, base schema) + write (create base/table/field, update table/field). Meta uses **object-form 404** (`not_found()`), unlike the data API's bare-string. Field type immutable on PATCH.
 - `store.py` + `seed.py` real; `/_arga/admin/reset` resets ids+clock+state deterministically. Stable seed IDs: CRM base `app1MrVfxTUgJuBm0`, Contacts table `tblSopvR8A6870fpC` (5 records).
 - `errors.py` real (AirtableError catalog + handlers: 422 override, unmatched-route NOT_FOUND). **Data-API not-found uses `not_found(bare=True)` → `{"error":"NOT_FOUND"}`.**

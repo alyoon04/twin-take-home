@@ -11,7 +11,7 @@ router) must be registered BEFORE the generic /v0/{baseId}/{table} records route
 from fastapi import FastAPI
 
 from twin import errors
-from twin.routers import control, meta, records
+from twin.routers import comments, control, meta, records
 
 
 def create_app() -> FastAPI:
@@ -22,6 +22,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(control.router)
     app.include_router(meta.router)  # before records: /v0/meta/* must not match /v0/{baseId}/{table}
+    app.include_router(comments.router)  # before records (defensive: record-scoped sub-paths)
     app.include_router(records.router)
     errors.register_handlers(app)
     return app

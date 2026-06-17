@@ -74,7 +74,7 @@ def _decode_offset(offset, total: int) -> int:
     return index
 
 
-def _query_records(table, *, fields, page_size, max_records, offset, sorts, by_id, formula_text=None) -> dict:
+def _query_records(table, *, fields, page_size, max_records, offset, sorts, by_id, formula_text=None, comment_count=False) -> dict:
     if not isinstance(page_size, int) or page_size < 1 or page_size > 100:
         raise errors.invalid_request()
     if max_records is not None and (not isinstance(max_records, int) or max_records < 1):
@@ -96,16 +96,17 @@ def _query_records(table, *, fields, page_size, max_records, offset, sorts, by_i
     start = _decode_offset(offset, total)
     page = ordered[start:min(start + page_size, total)]
 
-    out = {
-        "records": [
-            {
-                "id": r["id"],
-                "createdTime": r["createdTime"],
-                "fields": _format_fields(r["fields"], fields, by_id, name_to_id),
-            }
-            for r in page
-        ]
-    }
+    records_out = []
+    for r in page:
+        item = {
+            "id": r["id"],
+            "createdTime": r["createdTime"],
+            "fields": _format_fields(r["fields"], fields, by_id, name_to_id),
+        }
+        if comment_count:
+            item["commentCount"] = len(r.get("comments", {}))
+        records_out.append(item)
+    out = {"records": records_out}
     next_index = start + len(page)
     if next_index < total:
         out["offset"] = _encode_offset(next_index, ordered)
@@ -162,6 +163,7 @@ def list_records(base_id: str, table_id_or_name: str, request: Request, _: ReadT
         sorts=_sorts_from_query(qp),
         by_id=qp.get("returnFieldsByFieldId") == "true",
         formula_text=qp.get("filterByFormula"),
+        comment_count="commentCount" in (qp.getlist("recordMetadata[]") or qp.getlist("recordMetadata")),
     )
 
 
@@ -183,6 +185,7 @@ def list_records_post(
         sorts=_sorts_from_body(body.get("sort")),
         by_id=bool(body.get("returnFieldsByFieldId", False)),
         formula_text=body.get("filterByFormula"),
+        comment_count="commentCount" in (body.get("recordMetadata") or []),
     )
 
 

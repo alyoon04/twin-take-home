@@ -39,6 +39,7 @@ def build() -> dict:
 
     crm = _build_crm_base()
     tracker = _build_project_tracker_base()
+    _seed_comments(crm, uid, users[uid])
 
     return {
         "provider": "airtable",
@@ -62,6 +63,21 @@ def _choices(pairs: list[tuple[str, str]]) -> list[dict]:
 
 def _grid_view() -> dict:
     return {"id": ids.view_id(), "name": "Grid view", "type": "grid"}
+
+
+def _seed_comments(base: dict, user_id: str, user: dict) -> None:
+    contacts = next(t for t in base["tables"].values() if t["name"] == "Contacts")
+    record = next(iter(contacts["records"].values()))
+    record["comments"] = {}
+    for text in ["Welcome to the CRM!", "Reach out next week."]:
+        cid = ids.comment_id()
+        record["comments"][cid] = {
+            "id": cid,
+            "author": {"id": user_id, "email": user["email"], "name": user["name"]},
+            "text": text,
+            "createdTime": clock.stamp(),
+            "lastUpdatedTime": None,
+        }
 
 
 # --- CRM base -------------------------------------------------------------
