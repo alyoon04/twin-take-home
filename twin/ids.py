@@ -5,6 +5,7 @@ given type after ``reset_counters()`` is always identical. No entropy sources:
 the only variability is the counter, which the store resets deterministically.
 """
 
+import base64
 import hashlib
 
 from twin.config import (
@@ -91,3 +92,8 @@ def webhook_id() -> str:
 
 def select_id() -> str:
     return next_id(PREFIX_SELECT)
+
+
+def webhook_mac(webhook_id: str) -> str:
+    """Deterministic base64 MAC secret for a webhook (returned only on creation)."""
+    return base64.b64encode(hashlib.sha256(f"mac:{webhook_id}".encode()).digest()).decode()

@@ -32,7 +32,7 @@ def _counts() -> dict:
         "records": sum(len(t["records"]) for t in tables),
         "users": len(state.get("users", {})),
         "tokens": len(state.get("tokens", {})),
-        "webhooks": len(state.get("webhooks", {})),
+        "webhooks": sum(len(b.get("webhooks", {})) for b in bases.values()),
     }
 
 

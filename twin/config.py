@@ -56,3 +56,8 @@ ALL_SCOPES = [
 VALID_PAT = "twin-fake-pat_developer_full-scope_DO-NOT-USE"
 READONLY_PAT = "twin-fake-pat_readonly_DO-NOT-USE"
 INVALID_PAT_EXAMPLE = "twin-fake-pat_invalid_example_DO-NOT-USE"
+
+# --- Webhooks (AIRTABLE_SPEC.md section 10) -------------------------------
+# Deterministic, fixed expiration (real Airtable: 7 days after creation).
+WEBHOOK_EXPIRATION = (SEED_INSTANT + timedelta(days=7)).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+WEBHOOK_EXPIRATION_REFRESHED = (SEED_INSTANT + timedelta(days=14)).isoformat(timespec="milliseconds").replace("+00:00", "Z")

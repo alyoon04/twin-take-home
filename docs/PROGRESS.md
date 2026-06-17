@@ -1,12 +1,12 @@
 # Progress Log
 
-> **Resume here:** S17 (Comments) complete — list/create/update/delete on `…/{recordId}/comments`
-> (`{id:com…,author,text,createdTime,lastUpdatedTime}`), seeded 2 comments, `recordMetadata[]=commentCount`
-> wired into records; 109 tests passing. **Next → S18: Webhooks** — create/list/delete + payload event log
-> (`/v0/bases/{baseId}/webhooks`); **register before records** like meta/comments.
+> **Resume here:** S18 (Webhooks) complete — create/list/delete/refresh + payloads stream; record mutations
+> emit `record.created/updated/destroyed` payloads (`twin/events.py`); seeded 1 webhook on CRM; 119 tests
+> passing. **Phase 3 (Meta/Comments/Webhooks) DONE — full provider surface implemented.** **Next → S19
+> (Phase 4): rate limiting** — deterministic per-base counter → 429 `RATE_LIMIT_REACHED`.
 
-**Last updated:** 2026-06-16 — S17
-**Current phase:** Phase 3 — Meta / Comments / Webhooks (S18 next)
+**Last updated:** 2026-06-16 — S18
+**Current phase:** Phase 4 — Hardening (S19 next)
 
 ## Checklist
 ### Phase 0 — Setup & Research
@@ -31,7 +31,7 @@
 - [x] S15 Meta read (whoami/bases/schema)
 - [x] S16 Meta write (create/update base/table/field)
 - [x] S17 Comments CRUD
-- [ ] S18 Webhooks + payload event log
+- [x] S18 Webhooks + payload event log
 ### Phase 4 — Hardening
 - [ ] S19 Rate limiting (429)
 - [ ] S20 Cross-cutting polish (errors, request-id, OpenAPI examples)
@@ -93,7 +93,8 @@ S2 resolved the big ones (see outcome above). Remaining unconfirmed items live i
 
 ## Notes for the next session
 - `AIRTABLE_SPEC.md` is the build's source of truth — read the relevant section before each step.
-- Package: `twin/{api,config,ids,clock,store,errors,auth,formula,recordutil}.py` + `twin/routers/{control,meta,comments,records}.py`; `app.py` re-exports `twin.api:app`. **Router order in `api.py`: control → meta → comments → records** (specific paths before generic `/v0/{baseId}/{table}`; webhooks (S18) also registers before records).
+- Package: `twin/{api,config,ids,clock,store,errors,auth,formula,recordutil,events}.py` + `twin/routers/{control,meta,comments,webhooks,records}.py`; `app.py` re-exports `twin.api:app`. **Router order in `api.py`: control → meta → comments → webhooks → records** (specific paths before generic `/v0/{baseId}/{table}`).
+- Webhooks live per-base (`base["webhooks"]`, `base["transactionNumber"]`); `events.emit_change(table, …)` appends `record.created/updated/destroyed` payloads on every record mutation (the "generated events" stream). One webhook seeded on CRM.
 - `comments.py`: list/create/update/delete on a record; `recordMetadata[]=commentCount` wired into records list; stored at `record["comments"]`. **Scope simplification (flag for S24): comments reuse `data.records:read/write`, not Airtable's `data.recordComments:*`.**
 - `meta.py`: **complete** — read (whoami, list bases, base schema) + write (create base/table/field, update table/field). Meta uses **object-form 404** (`not_found()`), unlike the data API's bare-string. Field type immutable on PATCH.
 - `store.py` + `seed.py` real; `/_arga/admin/reset` resets ids+clock+state deterministically. Stable seed IDs: CRM base `app1MrVfxTUgJuBm0`, Contacts table `tblSopvR8A6870fpC` (5 records).

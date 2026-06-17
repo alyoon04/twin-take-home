@@ -12,7 +12,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, Request
 
-from twin import auth, clock, config, errors, formula, ids, recordutil, store
+from twin import auth, clock, config, errors, events, formula, ids, recordutil, store
 
 router = APIRouter(tags=["records"])
 
@@ -269,11 +269,13 @@ def create_records(base_id: str, table_id_or_name: str, _: WriteToken, body: Ann
         built = [_build_record(table, item, typecast) for item in items]  # validate all before commit
         for record in built:
             table["records"][record["id"]] = record
+        events.emit_change(table, created=built)
         return {"records": [_present(r, by_id, name_to_id) for r in built]}
 
     if "fields" in body:
         record = _build_record(table, body, typecast)
         table["records"][record["id"]] = record
+        events.emit_change(table, created=[record])
         return _present(record, by_id, name_to_id)
 
     raise errors.invalid_request_missing_fields()
@@ -291,6 +293,7 @@ def _single_update(base_id, table_id_or_name, record_id, body, destructive):
     name_to_id = {f["name"]: f["id"] for f in table["fields"]}
     validated = _validate_fields(table, body["fields"], bool(body.get("typecast", False)))
     _apply_validated(record, validated, destructive)
+    events.emit_change(table, changed=[record])
     return _present(record, bool(body.get("returnFieldsByFieldId", False)), name_to_id)
 
 
@@ -328,6 +331,7 @@ def _batch_update(base_id, table_id_or_name, body, destructive):
         prepared.append((record, _validate_fields(table, item["fields"], typecast)))
     for record, validated in prepared:
         _apply_validated(record, validated, destructive)
+    events.emit_change(table, changed=[r for r, _ in prepared])
     return {"records": [_present(r, by_id, name_to_id) for r, _ in prepared]}
 
 
@@ -365,6 +369,7 @@ def _upsert(table, body, typecast, by_id, name_to_id, destructive):
             raise errors.invalid_request("Multiple records matched the upsert merge fields.")
         plan.append(("update", matched[0], validated) if matched else ("create", None, validated))
 
+    created, changed = [], []
     created_ids, updated_ids, result = [], [], []
     for kind, record, validated in plan:
         if kind == "create":
@@ -372,10 +377,13 @@ def _upsert(table, body, typecast, by_id, name_to_id, destructive):
             record = {"id": rid, "createdTime": clock.stamp(), "fields": recordutil.clean_fields(validated)}
             table["records"][rid] = record
             created_ids.append(rid)
+            created.append(record)
         else:
             _apply_validated(record, validated, destructive)
             updated_ids.append(record["id"])
+            changed.append(record)
         result.append(record)
+    events.emit_change(table, created=created or None, changed=changed or None)
     return {
         "records": [_present(r, by_id, name_to_id) for r in result],
         "createdRecords": created_ids,
@@ -405,7 +413,9 @@ def _delete_one(table: dict, record_id: str) -> dict:
 @router.delete("/v0/{base_id}/{table_id_or_name}/{record_id}")
 def delete_record(base_id: str, table_id_or_name: str, record_id: str, _: WriteToken) -> dict:
     table = _resolve_table(base_id, table_id_or_name)
-    return _delete_one(table, record_id)
+    result = _delete_one(table, record_id)
+    events.emit_change(table, destroyed=[record_id])
+    return result
 
 
 @router.delete("/v0/{base_id}/{table_id_or_name}")
@@ -419,4 +429,6 @@ def delete_records(base_id: str, table_id_or_name: str, request: Request, _: Wri
     for rid in record_ids:  # atomic: all must exist before any deletion
         if rid not in table["records"]:
             raise errors.record_not_found()
-    return {"records": [_delete_one(table, rid) for rid in record_ids]}
+    result = {"records": [_delete_one(table, rid) for rid in record_ids]}
+    events.emit_change(table, destroyed=list(record_ids))
+    return result

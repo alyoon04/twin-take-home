@@ -40,13 +40,13 @@ def build() -> dict:
     crm = _build_crm_base()
     tracker = _build_project_tracker_base()
     _seed_comments(crm, uid, users[uid])
+    _seed_webhook(crm)
 
     return {
         "provider": "airtable",
         "users": users,
         "tokens": tokens,
         "bases": {crm["id"]: crm, tracker["id"]: tracker},
-        "webhooks": {},
     }
 
 
@@ -80,6 +80,23 @@ def _seed_comments(base: dict, user_id: str, user: dict) -> None:
         }
 
 
+def _seed_webhook(base: dict) -> None:
+    wid = ids.webhook_id()
+    base["webhooks"][wid] = {
+        "id": wid,
+        "specification": {"options": {"filters": {"dataTypes": ["tableData"]}}},
+        "notificationUrl": "https://example.com/twin-webhook",
+        "isHookEnabled": True,
+        "areNotificationsEnabled": True,
+        "cursorForNextPayload": 1,
+        "expirationTime": config.WEBHOOK_EXPIRATION,
+        "lastSuccessfulNotificationTime": None,
+        "lastNotificationResult": None,
+        "payloads": [],
+        "macSecretBase64": ids.webhook_mac(wid),
+    }
+
+
 # --- CRM base -------------------------------------------------------------
 
 def _build_crm_base() -> dict:
@@ -90,6 +107,8 @@ def _build_crm_base() -> dict:
         "name": "CRM",
         "permissionLevel": "create",
         "tables": {contacts["id"]: contacts},
+        "webhooks": {},
+        "transactionNumber": 0,
     }
 
 
@@ -214,4 +233,6 @@ def _build_project_tracker_base() -> dict:
         "name": "Project Tracker",
         "permissionLevel": "create",
         "tables": {projects_tid: projects_table, tasks_tid: tasks_table},
+        "webhooks": {},
+        "transactionNumber": 0,
     }
