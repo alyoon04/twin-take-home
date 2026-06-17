@@ -48,6 +48,7 @@ def build() -> dict:
         "tokens": tokens,
         "bases": {crm["id"]: crm, tracker["id"]: tracker},
         "rateLimit": {"enabled": False, "perBase": config.RATE_LIMIT_PER_BASE, "counts": {}},
+        "requestSeq": 0,
     }
 
 

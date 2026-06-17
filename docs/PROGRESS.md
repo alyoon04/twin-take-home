@@ -1,12 +1,12 @@
 # Progress Log
 
-> **Resume here:** S19 (rate limiting) complete — opt-in, deterministic per-base counter via
-> `POST /_arga/admin/rate-limit` → 429 `RATE_LIMIT_REACHED` (off by default; reset clears+disables);
-> 123 tests passing. **Next → S20: cross-cutting polish** — `X-Request-Id` response header, OpenAPI
-> tags/examples, final error-consistency sweep.
+> **Resume here:** S20 (polish) complete — deterministic `X-Request-Id` on all responses, OpenAPI tag
+> descriptions, error-envelope consistency sweep (no FastAPI `{"detail"}` leaks); 126 tests passing.
+> **Phase 4 (Hardening) DONE.** **Next → S21 (Phase 5): twin-contract.yaml** — fill it out for Airtable
+> (provider, base_url, run cmds, valid+invalid auth, control endpoints, example calls).
 
-**Last updated:** 2026-06-16 — S19
-**Current phase:** Phase 4 — Hardening (S20 next)
+**Last updated:** 2026-06-16 — S20
+**Current phase:** Phase 5 — Contract / Verify / Docs (S21 next)
 
 ## Checklist
 ### Phase 0 — Setup & Research
@@ -34,7 +34,7 @@
 - [x] S18 Webhooks + payload event log
 ### Phase 4 — Hardening
 - [x] S19 Rate limiting (429)
-- [ ] S20 Cross-cutting polish (errors, request-id, OpenAPI examples)
+- [x] S20 Cross-cutting polish (errors, request-id, OpenAPI examples)
 ### Phase 5 — Contract / Verify / Docs
 - [ ] S21 twin-contract.yaml complete
 - [ ] S22 scripts/verify.py
@@ -96,6 +96,7 @@ S2 resolved the big ones (see outcome above). Remaining unconfirmed items live i
 - Package: `twin/{api,config,ids,clock,store,errors,auth,formula,recordutil,events}.py` + `twin/routers/{control,meta,comments,webhooks,records}.py`; `app.py` re-exports `twin.api:app`. **Router order in `api.py`: control → meta → comments → webhooks → records** (specific paths before generic `/v0/{baseId}/{table}`).
 - Webhooks live per-base (`base["webhooks"]`, `base["transactionNumber"]`); `events.emit_change(table, …)` appends `record.created/updated/destroyed` payloads on every record mutation (the "generated events" stream). One webhook seeded on CRM.
 - Rate limiting: opt-in per-base counter in `store.state["rateLimit"]`, toggled via `POST /_arga/admin/rate-limit {enabled,perBase}` (middleware in `api.py`). **Off by default** (avoids spurious 429s during validation); counter-based → deterministic; reset clears+disables.
+- `api.py` middleware also sets a deterministic `X-Request-Id` (`req…`, from `store.state["requestSeq"]`, reset-clearable) on every response. OpenAPI has per-tag descriptions.
 - `comments.py`: list/create/update/delete on a record; `recordMetadata[]=commentCount` wired into records list; stored at `record["comments"]`. **Scope simplification (flag for S24): comments reuse `data.records:read/write`, not Airtable's `data.recordComments:*`.**
 - `meta.py`: **complete** — read (whoami, list bases, base schema) + write (create base/table/field, update table/field). Meta uses **object-form 404** (`not_found()`), unlike the data API's bare-string. Field type immutable on PATCH.
 - `store.py` + `seed.py` real; `/_arga/admin/reset` resets ids+clock+state deterministically. Stable seed IDs: CRM base `app1MrVfxTUgJuBm0`, Contacts table `tblSopvR8A6870fpC` (5 records).
