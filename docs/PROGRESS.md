@@ -1,13 +1,12 @@
 # Progress Log
 
-> **Resume here:** S21–S23 (Phase 5: contract / verify / docs) complete — `twin-contract.yaml` (airtable,
-> 9 examples w/ seed IDs), `scripts/verify.py` (16 black-box checks, exit 0 vs the container), README
-> rewritten (provider, coverage matrix, creds, examples, gaps). 126 pytest + 16 verify checks green.
-> **Phase 5 DONE.** **Next → S24 (Phase 6): adversarial fidelity audit** `[FAN-OUT]` — multi-agent review
-> of each family vs the spec/real API for valid + invalid inputs.
+> **Resume here:** S24 (adversarial audit) complete — `docs/AUDIT.md`: **8 confirmed findings** (5 med / 3
+> low, all small) + 1 completeness gap (webhook `enableNotifications`); 3 false positives refuted by the
+> skeptics. 126 tests still green. **Next → S25: apply the 8 fixes + `enableNotifications`** (small
+> commits), add/adjust tests, re-verify (pytest + verify.py).
 
-**Last updated:** 2026-06-16 — S23
-**Current phase:** Phase 6 — Adversarial Audit (S24 next)
+**Last updated:** 2026-06-17 — S24
+**Current phase:** Phase 6 — Adversarial Audit (S25 next)
 
 ## Checklist
 ### Phase 0 — Setup & Research
@@ -41,7 +40,7 @@
 - [x] S22 scripts/verify.py
 - [x] S23 README rewrite
 ### Phase 6 — Adversarial Audit
-- [ ] S24 Fidelity + completeness audit  `[FAN-OUT]`
+- [x] S24 Fidelity + completeness audit  `[FAN-OUT]`
 - [ ] S25 Fix findings + re-audit clean
 - [ ] S26 Final verification + submission polish
 
