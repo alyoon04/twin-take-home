@@ -61,10 +61,8 @@ def list_comments(base_id: str, table_id_or_name: str, record_id: str, request: 
             raise errors.invalid_request()
         start = int(offset)
     page = comments[start:start + page_size]
-    out = {"comments": page}
-    if start + len(page) < len(comments):
-        out["offset"] = str(start + len(page))
-    return out
+    has_more = start + len(page) < len(comments)
+    return {"comments": page, "offset": str(start + len(page)) if has_more else None}
 
 
 @router.post("/v0/{base_id}/{table_id_or_name}/{record_id}/comments")

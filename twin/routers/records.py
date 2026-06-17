@@ -38,7 +38,8 @@ def _resolve_table(base_id: str, table_id_or_name: str) -> dict:
 # --- query helpers --------------------------------------------------------
 
 def _sort_key(value):
-    return (value is None, value if value is not None else "")
+    # Airtable: ascending sort places blank/empty cells FIRST.
+    return (value is not None, value if value is not None else "")
 
 
 def _apply_sort(records: list, sorts: list, id_to_name: dict) -> list:
@@ -190,12 +191,14 @@ def list_records_post(
 
 
 @router.get("/v0/{base_id}/{table_id_or_name}/{record_id}")
-def get_record(base_id: str, table_id_or_name: str, record_id: str, _: ReadToken) -> dict:
+def get_record(base_id: str, table_id_or_name: str, record_id: str, request: Request, _: ReadToken) -> dict:
     table = _resolve_table(base_id, table_id_or_name)
     record = table["records"].get(record_id)
     if record is None:
         raise errors.not_found(bare=True)
-    return {"id": record["id"], "createdTime": record["createdTime"], "fields": dict(record["fields"])}
+    by_id = request.query_params.get("returnFieldsByFieldId") == "true"
+    name_to_id = {f["name"]: f["id"] for f in table["fields"]}
+    return _present(record, by_id, name_to_id)
 
 
 # --- create (S12) ---------------------------------------------------------
@@ -265,7 +268,9 @@ def create_records(base_id: str, table_id_or_name: str, _: WriteToken, body: Ann
         if not isinstance(items, list):
             raise errors.invalid_request()
         if len(items) > 10:
-            raise errors.invalid_request("Too many records; the maximum is 10 per request.")
+            raise errors.invalid_request(
+                f"A maximum of 10 records can be created per request but you have provided {len(items)}."
+            )
         built = [_build_record(table, item, typecast) for item in items]  # validate all before commit
         for record in built:
             table["records"][record["id"]] = record

@@ -100,6 +100,14 @@ def refresh_webhook(base_id: str, webhook_id: str, _: ManageScope) -> dict:
     return {"expirationTime": webhook["expirationTime"]}
 
 
+@router.post("/v0/bases/{base_id}/webhooks/{webhook_id}/enableNotifications")
+def enable_notifications(base_id: str, webhook_id: str, _: ManageScope, body: Annotated[dict, Body()]) -> dict:
+    webhook = _webhook(base_id, webhook_id)
+    if "enable" in body:
+        webhook["areNotificationsEnabled"] = bool(body["enable"])
+    return {}
+
+
 @router.get("/v0/bases/{base_id}/webhooks/{webhook_id}/payloads")
 def list_payloads(base_id: str, webhook_id: str, request: Request, _: PayloadScope) -> dict:
     webhook = _webhook(base_id, webhook_id)

@@ -18,8 +18,9 @@ SchemaRead = Annotated[dict, Depends(auth.require_scope(config.SCOPE_SCHEMA_READ
 
 @router.get("/whoami")
 def whoami(token: Annotated[dict, Depends(auth.get_token)]) -> dict:
-    # Any valid token; no scope required.
-    return {"id": token["userId"], "scopes": list(token.get("scopes", []))}
+    # Any valid token; no scope required. PAT-style tokens return just {id}
+    # (Airtable includes `scopes` only for OAuth access tokens).
+    return {"id": token["userId"]}
 
 
 @router.get("/bases")
@@ -131,7 +132,8 @@ def _build_table(cfg) -> dict:
 
 @router.post("/bases")
 def create_base(_: SchemaWrite, body: Annotated[dict, Body()]) -> dict:
-    if not isinstance(body.get("name"), str) or not isinstance(body.get("tables"), list) or not body["tables"]:
+    if (not isinstance(body.get("name"), str) or not isinstance(body.get("workspaceId"), str)
+            or not isinstance(body.get("tables"), list) or not body["tables"]):
         raise errors.invalid_request()
     base_id = ids.base_id()
     tables = [_build_table(tc) for tc in body["tables"]]

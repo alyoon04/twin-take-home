@@ -183,8 +183,10 @@ def register_handlers(app: FastAPI) -> None:
         if exc.status_code == status.HTTP_404_NOT_FOUND:
             err = not_found(bare=True)  # data-API 404s use the bare-string form
             return JSONResponse(status_code=err.status_code, content=err.body)
+        # Any other framework error (e.g. 405) -> Airtable object envelope, never {"detail": ...}.
+        detail = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
         return JSONResponse(
             status_code=exc.status_code,
-            content={"detail": exc.detail},
+            content={"error": {"type": detail.upper().replace(" ", "_"), "message": detail}},
             headers=getattr(exc, "headers", None),
         )

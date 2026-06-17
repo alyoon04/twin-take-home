@@ -58,3 +58,4 @@ def emit_change(table: dict, *, created=None, changed=None, destroyed=None) -> N
     }
     for w in webhooks:
         w["payloads"].append(payload)
+        w["cursorForNextPayload"] = base["transactionNumber"] + 1

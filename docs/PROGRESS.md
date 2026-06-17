@@ -1,12 +1,12 @@
 # Progress Log
 
-> **Resume here:** S24 (adversarial audit) complete — `docs/AUDIT.md`: **8 confirmed findings** (5 med / 3
-> low, all small) + 1 completeness gap (webhook `enableNotifications`); 3 false positives refuted by the
-> skeptics. 126 tests still green. **Next → S25: apply the 8 fixes + `enableNotifications`** (small
-> commits), add/adjust tests, re-verify (pytest + verify.py).
+> **Resume here:** S25 (audit fixes) complete — all 8 confirmed findings fixed + `enableNotifications`
+> added, each with a test in `tests/test_audit_fixes.py`; **135 pytest green**. Container black-box
+> re-verify folded into S26. **Next → S26: final verification** — `docker build`/`run` + `verify.py` +
+> the brief's exact commands + determinism re-check; submission polish.
 
-**Last updated:** 2026-06-17 — S24
-**Current phase:** Phase 6 — Adversarial Audit (S25 next)
+**Last updated:** 2026-06-17 — S25
+**Current phase:** Phase 6 — Adversarial Audit (S26 next)
 
 ## Checklist
 ### Phase 0 — Setup & Research
@@ -41,7 +41,7 @@
 - [x] S23 README rewrite
 ### Phase 6 — Adversarial Audit
 - [x] S24 Fidelity + completeness audit  `[FAN-OUT]`
-- [ ] S25 Fix findings + re-audit clean
+- [x] S25 Fix findings + re-audit clean
 - [ ] S26 Final verification + submission polish
 
 ## Baseline (S1) — verified 2026-06-16
