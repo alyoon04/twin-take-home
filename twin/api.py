@@ -11,7 +11,7 @@ router) must be registered BEFORE the generic /v0/{baseId}/{table} records route
 from fastapi import FastAPI
 
 from twin import errors
-from twin.routers import control, records
+from twin.routers import control, meta, records
 
 
 def create_app() -> FastAPI:
@@ -21,6 +21,7 @@ def create_app() -> FastAPI:
         description="Local fake of the Airtable Web API for development and testing (Arga SaaS twin).",
     )
     app.include_router(control.router)
+    app.include_router(meta.router)  # before records: /v0/meta/* must not match /v0/{baseId}/{table}
     app.include_router(records.router)
     errors.register_handlers(app)
     return app
