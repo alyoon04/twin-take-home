@@ -61,3 +61,9 @@ INVALID_PAT_EXAMPLE = "twin-fake-pat_invalid_example_DO-NOT-USE"
 # Deterministic, fixed expiration (real Airtable: 7 days after creation).
 WEBHOOK_EXPIRATION = (SEED_INSTANT + timedelta(days=7)).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 WEBHOOK_EXPIRATION_REFRESHED = (SEED_INSTANT + timedelta(days=14)).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+# --- Rate limiting (AIRTABLE_SPEC.md section 11) --------------------------
+# Off by default; opt-in via POST /_arga/admin/rate-limit so it never breaks the
+# validator's normal sampling. Counter-based (not wall-clock) to stay
+# deterministic; mirrors Airtable's documented 5 requests/second/base.
+RATE_LIMIT_PER_BASE = 5
